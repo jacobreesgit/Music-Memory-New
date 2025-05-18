@@ -1,17 +1,18 @@
-//
-//  Music_Memory_NewApp.swift
-//  Music Memory New
-//
-//  Created by Jacob Rees on 18/05/2025.
-//
-
 import SwiftUI
+import MediaPlayer
 
 @main
-struct Music_Memory_NewApp: App {
+struct MusicMemoryApp: App {
+    @StateObject private var musicLibrary = MusicLibraryModel()
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(musicLibrary)
+                .onAppear {
+                    // Request permission and load data when app opens
+                    musicLibrary.requestPermissionAndLoadLibrary()
+                }
         }
     }
 }
