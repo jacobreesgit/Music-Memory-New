@@ -136,6 +136,7 @@ struct SongsView: View {
                         ForEach(Array(musicLibrary.appleMusicSongs.enumerated()), id: \.element.id) { index, song in
                             NavigationLink(destination: AppleMusicSongDetailView(song: song, rank: index + 1)) {
                                 AppleMusicSongRow(song: song, rank: index + 1)
+                                    .environmentObject(musicLibrary)
                             }
                         }
                     }
@@ -231,8 +232,17 @@ struct SongRow: View {
 
 // MARK: - Apple Music Song Row
 struct AppleMusicSongRow: View {
+    @EnvironmentObject var musicLibrary: MusicLibraryModel
     let song: Song
     let rank: Int
+    
+    var isInLibrary: Bool {
+        musicLibrary.isAppleMusicSongInLibrary(song)
+    }
+    
+    var localSongPlayCount: Int? {
+        musicLibrary.getLocalSongMatch(for: song)?.playCount
+    }
     
     var body: some View {
         HStack(spacing: 12) {
@@ -259,13 +269,44 @@ struct AppleMusicSongRow: View {
             }
             .frame(width: 50, height: 50)
             .cornerRadius(8)
+            .overlay(
+                // "In Library" indicator overlay
+                isInLibrary ?
+                VStack {
+                    HStack {
+                        Spacer()
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundColor(.white)
+                            .background(Color.green)
+                            .clipShape(Circle())
+                    }
+                    Spacer()
+                }
+                .padding(2)
+                : nil
+            )
             
             // Song info
             VStack(alignment: .leading, spacing: 4) {
-                Text(song.title)
-                    .font(.body)
-                    .fontWeight(.medium)
-                    .lineLimit(1)
+                HStack {
+                    Text(song.title)
+                        .font(.body)
+                        .fontWeight(.medium)
+                        .lineLimit(1)
+                    
+                    // "In Library" tag
+                    if isInLibrary {
+                        Text("IN LIBRARY")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.green)
+                            .foregroundColor(.white)
+                            .cornerRadius(8)
+                    }
+                }
                 
                 Text(song.artistName)
                     .font(.caption)
@@ -275,7 +316,7 @@ struct AppleMusicSongRow: View {
             
             Spacer()
             
-            // Apple Music indicator and album
+            // Apple Music indicator, play count (if in library), and album
             VStack(alignment: .trailing, spacing: 4) {
                 HStack(spacing: 4) {
                     Image(systemName: "applelogo")
@@ -284,6 +325,14 @@ struct AppleMusicSongRow: View {
                     Text("Apple Music")
                         .font(.caption)
                         .foregroundColor(.red)
+                }
+                
+                // Show play count if the song is in library
+                if isInLibrary, let playCount = localSongPlayCount {
+                    Text("\(playCount) plays")
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .foregroundColor(.green)
                 }
                 
                 Text(song.albumTitle ?? "")

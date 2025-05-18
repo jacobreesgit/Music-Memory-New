@@ -2,33 +2,71 @@ import SwiftUI
 import MusicKit
 
 struct AppleMusicSongDetailView: View {
+    @EnvironmentObject var musicLibrary: MusicLibraryModel
     let song: Song
     let rank: Int
+    
+    var isInLibrary: Bool {
+        musicLibrary.isAppleMusicSongInLibrary(song)
+    }
+    
+    var localSongMatch: MPMediaItem? {
+        musicLibrary.getLocalSongMatch(for: song)
+    }
     
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
                 // Header with artwork and basic info
                 VStack(spacing: 16) {
-                    // Large artwork
-                    AsyncImage(url: song.artwork?.url(width: 250, height: 250)) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: 250, height: 250)
-                            .cornerRadius(12)
-                            .shadow(radius: 10)
-                    } placeholder: {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color(.systemGray5))
+                    // Large artwork with library indicator
+                    ZStack {
+                        AsyncImage(url: song.artwork?.url(width: 250, height: 250)) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
                                 .frame(width: 250, height: 250)
-                            
-                            Image(systemName: "music.note")
-                                .font(.system(size: 80))
-                                .foregroundColor(.secondary)
+                                .cornerRadius(12)
+                                .shadow(radius: 10)
+                        } placeholder: {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color(.systemGray5))
+                                    .frame(width: 250, height: 250)
+                                
+                                Image(systemName: "music.note")
+                                    .font(.system(size: 80))
+                                    .foregroundColor(.secondary)
+                            }
+                            .shadow(radius: 10)
                         }
-                        .shadow(radius: 10)
+                        
+                        // "In Library" indicator overlay
+                        if isInLibrary {
+                            VStack {
+                                HStack {
+                                    Spacer()
+                                    VStack(spacing: 4) {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .font(.title2)
+                                            .foregroundColor(.white)
+                                            .background(Color.green)
+                                            .clipShape(Circle())
+                                        
+                                        Text("IN LIBRARY")
+                                            .font(.caption2)
+                                            .fontWeight(.bold)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(Color.green)
+                                            .foregroundColor(.white)
+                                            .cornerRadius(12)
+                                    }
+                                }
+                                Spacer()
+                            }
+                            .padding(12)
+                        }
                     }
                     
                     // Song title and artist
@@ -68,6 +106,24 @@ struct AppleMusicSongDetailView: View {
                                 Text("Catalog")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
+                            }
+                            
+                            // Library status indicator
+                            VStack {
+                                HStack(spacing: 4) {
+                                    Image(systemName: isInLibrary ? "checkmark.circle.fill" : "circle")
+                                        .font(.title2)
+                                        .foregroundColor(isInLibrary ? .green : .gray)
+                                    Text(isInLibrary ? "In Library" : "Not in Library")
+                                        .font(.title3)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(isInLibrary ? .green : .gray)
+                                }
+                                if isInLibrary, let playCount = localSongMatch?.playCount {
+                                    Text("\(playCount) plays")
+                                        .font(.caption)
+                                        .foregroundColor(.green)
+                                }
                             }
                         }
                         .padding(.top, 8)
@@ -120,6 +176,24 @@ struct AppleMusicSongDetailView: View {
                         
                         // Playback availability
                         DetailRow(title: "Source", value: "Apple Music Catalog")
+                        
+                        // Library status with additional info
+                        if isInLibrary {
+                            if let localSong = localSongMatch {
+                                DetailRow(title: "Library Status", value: "Available in Your Library")
+                                DetailRow(title: "Play Count", value: "\(localSong.playCount)")
+                                
+                                if let lastPlayed = localSong.lastPlayedDate {
+                                    DetailRow(title: "Last Played", value: formatDate(lastPlayed))
+                                }
+                                
+                                if let dateAdded = localSong.dateAdded {
+                                    DetailRow(title: "Date Added", value: formatDate(dateAdded))
+                                }
+                            }
+                        } else {
+                            DetailRow(title: "Library Status", value: "Not in Your Library")
+                        }
                         
                         if song.hasLyrics {
                             DetailRow(title: "Lyrics", value: "Available", isLast: true)

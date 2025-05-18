@@ -131,4 +131,37 @@ class MusicLibraryModel: ObservableObject {
     func clearAppleMusicSearch() {
         appleMusicSongs = []
     }
+    
+    /// Check if an Apple Music song is in the local library
+    func isAppleMusicSongInLibrary(_ appleMusicSong: Song) -> Bool {
+        guard hasAccess else { return false }
+        
+        return songs.contains { localSong in
+            // Compare title and artist name with some tolerance for differences
+            let titleMatch = normalizeString(localSong.title) == normalizeString(appleMusicSong.title)
+            let artistMatch = normalizeString(localSong.artist) == normalizeString(appleMusicSong.artistName)
+            
+            return titleMatch && artistMatch
+        }
+    }
+    
+    /// Get the local library song that matches an Apple Music song
+    func getLocalSongMatch(for appleMusicSong: Song) -> MPMediaItem? {
+        guard hasAccess else { return nil }
+        
+        return songs.first { localSong in
+            let titleMatch = normalizeString(localSong.title) == normalizeString(appleMusicSong.title)
+            let artistMatch = normalizeString(localSong.artist) == normalizeString(appleMusicSong.artistName)
+            
+            return titleMatch && artistMatch
+        }
+    }
+    
+    /// Normalize strings for comparison (remove extra spaces, make lowercase, etc.)
+    private func normalizeString(_ string: String?) -> String {
+        guard let string = string else { return "" }
+        return string.lowercased()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "  ", with: " ")
+    }
 }
