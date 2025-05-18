@@ -1,9 +1,13 @@
 import SwiftUI
 import MediaPlayer
+import MusicKit
 
 struct SongDetailView: View {
+    @EnvironmentObject var musicLibrary: MusicLibraryModel
     let song: MPMediaItem
     let rank: Int
+    @State private var appleMusicSong: Song?
+    @State private var isSearchingAppleMusic: Bool = false
     
     var body: some View {
         ScrollView {
@@ -45,7 +49,7 @@ struct SongDetailView: View {
                                 .multilineTextAlignment(.center)
                         }
                         
-                        // Rank and play count
+                        // Rank, play count and media source indicators
                         HStack(spacing: 16) {
                             VStack {
                                 Text("#\(rank)")
@@ -65,6 +69,24 @@ struct SongDetailView: View {
                                 Text("Plays")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
+                            }
+                            
+                            // Show Apple Music indicator if we found a match
+                            if appleMusicSong != nil {
+                                VStack {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "applelogo")
+                                            .font(.title2)
+                                            .foregroundColor(.red)
+                                        Text("Apple Music")
+                                            .font(.title3)
+                                            .fontWeight(.medium)
+                                            .foregroundColor(.red)
+                                    }
+                                    Text("Available")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
                             }
                         }
                         .padding(.top, 8)
@@ -104,17 +126,86 @@ struct SongDetailView: View {
                         // Cloud status
                         DetailRow(title: "Source", value: song.isCloudItem ? "Apple Music" : "Local Library")
                         
-                        if song.isExplicitItem {
+                        // If we have Apple Music song info, display additional details
+                        if let appleMusicSong = appleMusicSong {
+                            DetailRow(title: "Apple Music Catalog", value: "Available")
+                            
+                            if let isrc = appleMusicSong.isrc {
+                                DetailRow(title: "ISRC", value: isrc)
+                            }
+                            
+                            if let contentRating = appleMusicSong.contentRating {
+                                let ratingText = contentRating == .explicit ? "Explicit" : "Clean"
+                                DetailRow(title: "Content Rating", value: ratingText)
+                            } else if song.isExplicitItem {
+                                DetailRow(title: "Content", value: "Explicit")
+                            }
+                            
+                            if appleMusicSong.hasLyrics {
+                                DetailRow(title: "Lyrics", value: "Available", isLast: true)
+                            }
+                        } else if song.isExplicitItem {
                             DetailRow(title: "Content", value: "Explicit", isLast: true)
                         }
                     }
                 }
                 .padding(.horizontal)
+                
+                // Show loading indicator while searching Apple Music
+                if isSearchingAppleMusic {
+                    ProgressView()
+                        .padding()
+                }
             }
             .padding()
         }
         .navigationTitle(song.title ?? "Song")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            // Look up the song in Apple Music when the view appears
+            if musicLibrary.hasAppleMusicAccess {
+                fetchAppleMusicInfo()
+            }
+        }
+    }
+    
+    private func fetchAppleMusicInfo() {
+        guard let title = song.title, let artist = song.artist else { return }
+        
+        isSearchingAppleMusic = true
+        
+        // Search Apple Music for this song
+        Task {
+            // Create a specific query for better matching
+            let query = "\(title) \(artist)"
+            
+            do {
+                // Use MusicKit to search
+                var request = MusicCatalogSearchRequest(term: query, types: [Song.self])
+                request.limit = 5 // Limit to top results for efficiency
+                let response = try await request.response()
+                
+                // Look for a match in the results
+                if let match = response.songs.first(where: {
+                    musicLibrary.normalizeString($0.title) == musicLibrary.normalizeString(title) &&
+                    musicLibrary.normalizeString($0.artistName) == musicLibrary.normalizeString(artist)
+                }) {
+                    await MainActor.run {
+                        self.appleMusicSong = match
+                        self.isSearchingAppleMusic = false
+                    }
+                } else {
+                    await MainActor.run {
+                        self.isSearchingAppleMusic = false
+                    }
+                }
+            } catch {
+                print("Error searching Apple Music: \(error)")
+                await MainActor.run {
+                    self.isSearchingAppleMusic = false
+                }
+            }
+        }
     }
     
     private func formatDuration(_ timeInterval: TimeInterval) -> String {
@@ -137,33 +228,5 @@ struct SongDetailView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy"
         return formatter.string(from: date)
-    }
-}
-
-struct DetailRow: View {
-    let title: String
-    let value: String
-    var isLast: Bool = false
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text(title)
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                
-                Spacer()
-                
-                Text(value)
-                    .font(.body)
-                    .fontWeight(.medium)
-                    .multilineTextAlignment(.trailing)
-            }
-            .padding(.vertical, 12)
-            
-            if !isLast {
-                Divider()
-            }
-        }
     }
 }

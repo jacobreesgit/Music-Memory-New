@@ -158,7 +158,7 @@ class MusicLibraryModel: ObservableObject {
     }
     
     /// Normalize strings for comparison (remove extra spaces, make lowercase, etc.)
-    private func normalizeString(_ string: String?) -> String {
+    func normalizeString(_ string: String?) -> String {
         guard let string = string else { return "" }
         return string.lowercased()
             .trimmingCharacters(in: .whitespacesAndNewlines)

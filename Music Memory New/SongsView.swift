@@ -29,7 +29,7 @@ struct SongsView: View {
                 
                 TextField("Search songs", text: $searchText)
                     .textFieldStyle(PlainTextFieldStyle())
-                    .onChange(of: searchText) { newValue in
+                    .onChange(of: searchText) { oldValue, newValue in
                         // Debounce Apple Music search
                         searchDebounceTimer?.invalidate()
                         searchDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
@@ -134,9 +134,18 @@ struct SongsView: View {
                 } else {
                     List {
                         ForEach(Array(musicLibrary.appleMusicSongs.enumerated()), id: \.element.id) { index, song in
-                            NavigationLink(destination: AppleMusicSongDetailView(song: song, rank: index + 1)) {
-                                AppleMusicSongRow(song: song, rank: index + 1)
-                                    .environmentObject(musicLibrary)
+                            if let localSong = musicLibrary.getLocalSongMatch(for: song) {
+                                // If the song is in the local library, show the SongDetailView
+                                NavigationLink(destination: SongDetailView(song: localSong, rank: index + 1)) {
+                                    AppleMusicSongRow(song: song, rank: index + 1)
+                                        .environmentObject(musicLibrary)
+                                }
+                            } else {
+                                // If not in library, show the AppleMusicSongDetailView
+                                NavigationLink(destination: AppleMusicSongDetailView(song: song, rank: index + 1)) {
+                                    AppleMusicSongRow(song: song, rank: index + 1)
+                                        .environmentObject(musicLibrary)
+                                }
                             }
                         }
                     }
