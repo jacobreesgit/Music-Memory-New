@@ -1,5 +1,6 @@
 import SwiftUI
 import MusicKit
+import MediaPlayer
 
 struct AppleMusicSongDetailView: View {
     @EnvironmentObject var musicLibrary: MusicLibraryModel
@@ -187,8 +188,8 @@ struct AppleMusicSongDetailView: View {
                                     DetailRow(title: "Last Played", value: formatDate(lastPlayed))
                                 }
                                 
-                                if let dateAdded = localSong.dateAdded {
-                                    DetailRow(title: "Date Added", value: formatDate(dateAdded))
+                                if let releaseDate = song.releaseDate {
+                                    DetailRow(title: "Release Date", value: formatDate(releaseDate))
                                 }
                             }
                         } else {

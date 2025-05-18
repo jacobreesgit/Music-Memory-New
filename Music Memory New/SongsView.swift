@@ -294,18 +294,6 @@ struct AppleMusicSongRow: View {
                         .font(.body)
                         .fontWeight(.medium)
                         .lineLimit(1)
-                    
-                    // "In Library" tag
-                    if isInLibrary {
-                        Text("IN LIBRARY")
-                            .font(.caption2)
-                            .fontWeight(.bold)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.green)
-                            .foregroundColor(.white)
-                            .cornerRadius(8)
-                    }
                 }
                 
                 Text(song.artistName)
@@ -318,21 +306,31 @@ struct AppleMusicSongRow: View {
             
             // Apple Music indicator, play count (if in library), and album
             VStack(alignment: .trailing, spacing: 4) {
-                HStack(spacing: 4) {
-                    Image(systemName: "applelogo")
-                        .font(.caption)
-                        .foregroundColor(.red)
-                    Text("Apple Music")
-                        .font(.caption)
-                        .foregroundColor(.red)
-                }
-                
-                // Show play count if the song is in library
-                if isInLibrary, let playCount = localSongPlayCount {
-                    Text("\(playCount) plays")
-                        .font(.caption2)
-                        .fontWeight(.medium)
-                        .foregroundColor(.green)
+                if isInLibrary {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundColor(.green)
+                        Text("In Library")
+                            .font(.caption)
+                            .foregroundColor(.green)
+                    }
+                    
+                    if let playCount = localSongPlayCount {
+                        Text("\(playCount) plays")
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .foregroundColor(.green)
+                    }
+                } else {
+                    HStack(spacing: 4) {
+                        Image(systemName: "applelogo")
+                            .font(.caption)
+                            .foregroundColor(.red)
+                        Text("Apple Music")
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    }
                 }
                 
                 Text(song.albumTitle ?? "")
