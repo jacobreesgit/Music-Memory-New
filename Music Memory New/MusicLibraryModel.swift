@@ -102,6 +102,7 @@ class MusicLibraryModel: ObservableObject {
     }
     
     /// Search Apple Music catalog
+    /// Search Apple Music catalog
     func searchAppleMusic(query: String) async {
         guard hasAppleMusicAccess && !query.isEmpty else { return }
         
@@ -114,8 +115,72 @@ class MusicLibraryModel: ObservableObject {
             request.limit = 25
             let response = try await request.response()
             
+            // Get the songs array
+            let searchResults = Array(response.songs)
+            
+            // Create a dictionary to store unique songs by a composite key
+            var uniqueSongs: [String: Song] = [:]
+            
+            // Deduplicate songs based on title, artist, and album
+            for song in searchResults {
+                let key = "\(normalizeString(song.title))|\(normalizeString(song.artistName))|\(normalizeString(song.albumTitle ?? ""))"
+                
+                // If we already have this song and it's in library, prefer the one in library
+                if let existingSong = uniqueSongs[key] {
+                    let existingInLibrary = isAppleMusicSongInLibrary(existingSong)
+                    let newInLibrary = isAppleMusicSongInLibrary(song)
+                    
+                    // Only replace if new song is in library and existing is not
+                    if newInLibrary && !existingInLibrary {
+                        uniqueSongs[key] = song
+                    }
+                } else {
+                    // First time seeing this song
+                    uniqueSongs[key] = song
+                }
+            }
+            
+            // Convert back to array
+            let uniqueResults = Array(uniqueSongs.values)
+            
+            // Sort the results - prioritize songs in the library
+            let sortedResults = uniqueResults.sorted { song1, song2 in
+                let song1InLibrary = isAppleMusicSongInLibrary(song1)
+                let song2InLibrary = isAppleMusicSongInLibrary(song2)
+                
+                // First priority: Songs in library come first
+                if song1InLibrary && !song2InLibrary {
+                    return true
+                } else if !song1InLibrary && song2InLibrary {
+                    return false
+                }
+                
+                // Second priority: For songs in library, sort by play count
+                if song1InLibrary && song2InLibrary {
+                    let song1PlayCount = getLocalSongMatch(for: song1)?.playCount ?? 0
+                    let song2PlayCount = getLocalSongMatch(for: song2)?.playCount ?? 0
+                    
+                    if song1PlayCount != song2PlayCount {
+                        return song1PlayCount > song2PlayCount
+                    }
+                }
+                
+                // Third priority: Sort by title relevance to query
+                let titleRelevance1 = song1.title.lowercased().contains(query.lowercased())
+                let titleRelevance2 = song2.title.lowercased().contains(query.lowercased())
+                
+                if titleRelevance1 && !titleRelevance2 {
+                    return true
+                } else if !titleRelevance1 && titleRelevance2 {
+                    return false
+                }
+                
+                // Default to the original title order
+                return song1.title < song2.title
+            }
+            
             await MainActor.run {
-                self.appleMusicSongs = Array(response.songs)
+                self.appleMusicSongs = sortedResults
                 self.isSearchingAppleMusic = false
             }
         } catch {
@@ -132,16 +197,30 @@ class MusicLibraryModel: ObservableObject {
         appleMusicSongs = []
     }
     
-    /// Check if an Apple Music song is in the local library
+    /// Check if an Apple Music song is in the local library with more precise matching
     func isAppleMusicSongInLibrary(_ appleMusicSong: Song) -> Bool {
         guard hasAccess else { return false }
         
         return songs.contains { localSong in
-            // Compare title and artist name with some tolerance for differences
+            // Basic matching (title and artist)
             let titleMatch = normalizeString(localSong.title) == normalizeString(appleMusicSong.title)
             let artistMatch = normalizeString(localSong.artist) == normalizeString(appleMusicSong.artistName)
             
-            return titleMatch && artistMatch
+            // Essential match (title + artist)
+            let essentialMatch = titleMatch && artistMatch
+            
+            // Precise matching (album + explicit status)
+            if let localAlbum = localSong.albumTitle, let appleMusicAlbum = appleMusicSong.albumTitle {
+                let albumMatch = normalizeString(localAlbum) == normalizeString(appleMusicAlbum)
+                
+                // Match explicit status when available
+                let explicitMatch = localSong.isExplicitItem == (appleMusicSong.contentRating == .explicit)
+                
+                // Return true only for exact matches
+                return essentialMatch && albumMatch && explicitMatch
+            }
+            
+            return false // Require album match for accurate results
         }
     }
     
@@ -149,12 +228,34 @@ class MusicLibraryModel: ObservableObject {
     func getLocalSongMatch(for appleMusicSong: Song) -> MPMediaItem? {
         guard hasAccess else { return nil }
         
-        return songs.first { localSong in
+        // First try for exact match including album and explicit status
+        let exactMatch = songs.first { localSong in
             let titleMatch = normalizeString(localSong.title) == normalizeString(appleMusicSong.title)
             let artistMatch = normalizeString(localSong.artist) == normalizeString(appleMusicSong.artistName)
             
-            return titleMatch && artistMatch
+            // Only proceed if title and artist match
+            guard titleMatch && artistMatch else { return false }
+            
+            // Check album match when available
+            if let localAlbum = localSong.albumTitle, let appleMusicAlbum = appleMusicSong.albumTitle {
+                let albumMatch = normalizeString(localAlbum) == normalizeString(appleMusicAlbum)
+                
+                // Match explicit status
+                let explicitMatch = localSong.isExplicitItem == (appleMusicSong.contentRating == .explicit)
+                
+                return albumMatch && explicitMatch
+            }
+            
+            return false
         }
+        
+        // Return exact match if found
+        if let exactMatch = exactMatch {
+            return exactMatch
+        }
+        
+        // As a fallback, we could return a less precise match, but let's keep it strict
+        return nil
     }
     
     /// Normalize strings for comparison (remove extra spaces, make lowercase, etc.)
