@@ -82,7 +82,7 @@ struct AppleMusicSongDetailView: View {
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                         
-                        // Rank and Apple Music indicator
+                        // Rank and library status indicators
                         HStack(spacing: 16) {
                             VStack {
                                 Text("#\(rank)")
@@ -94,20 +94,7 @@ struct AppleMusicSongDetailView: View {
                                     .foregroundColor(.secondary)
                             }
                             
-                            VStack {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "applelogo")
-                                        .font(.title2)
-                                        .foregroundColor(.red)
-                                    Text("Apple Music")
-                                        .font(.title3)
-                                        .fontWeight(.medium)
-                                        .foregroundColor(.red)
-                                }
-                                Text("Catalog")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
+                            // Apple Music indicator removed
                             
                             // Library status indicator
                             VStack {

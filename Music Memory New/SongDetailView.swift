@@ -49,7 +49,7 @@ struct SongDetailView: View {
                                 .multilineTextAlignment(.center)
                         }
                         
-                        // Rank, play count and media source indicators
+                        // Rank and play count indicators
                         HStack(spacing: 16) {
                             VStack {
                                 Text("#\(rank)")
@@ -71,23 +71,7 @@ struct SongDetailView: View {
                                     .foregroundColor(.secondary)
                             }
                             
-                            // Show Apple Music indicator if we found a match
-                            if appleMusicSong != nil {
-                                VStack {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "applelogo")
-                                            .font(.title2)
-                                            .foregroundColor(.red)
-                                        Text("Apple Music")
-                                            .font(.title3)
-                                            .fontWeight(.medium)
-                                            .foregroundColor(.red)
-                                    }
-                                    Text("Available")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
+                            // Apple Music indicator removed
                         }
                         .padding(.top, 8)
                     }
@@ -128,8 +112,6 @@ struct SongDetailView: View {
                         
                         // If we have Apple Music song info, display additional details
                         if let appleMusicSong = appleMusicSong {
-                            DetailRow(title: "Apple Music Catalog", value: "Available")
-                            
                             if let isrc = appleMusicSong.isrc {
                                 DetailRow(title: "ISRC", value: isrc)
                             }
