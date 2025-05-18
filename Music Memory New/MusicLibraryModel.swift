@@ -1,35 +1,45 @@
 import SwiftUI
 import MediaPlayer
+import MusicKit
 
-/// Simplified model for accessing music library data
+/// Enhanced model for accessing both local music library and Apple Music catalog
 class MusicLibraryModel: ObservableObject {
     @Published var songs: [MPMediaItem] = []
+    @Published var appleMusicSongs: [Song] = []
     @Published var isLoading: Bool = false
     @Published var hasAccess: Bool = false
+    @Published var hasAppleMusicAccess: Bool = false
     @Published var authorizationStatus: MPMediaLibraryAuthorizationStatus = .notDetermined
+    @Published var appleMusicAuthorizationStatus: MusicAuthorization.Status = .notDetermined
+    @Published var isSearchingAppleMusic: Bool = false
     
     init() {
-        // Check current authorization status
+        // Check current authorization status for both MediaPlayer and MusicKit
         authorizationStatus = MPMediaLibrary.authorizationStatus()
         hasAccess = authorizationStatus == .authorized
+        
+        // Check Apple Music authorization
+        appleMusicAuthorizationStatus = MusicAuthorization.currentStatus
+        hasAppleMusicAccess = appleMusicAuthorizationStatus == .authorized
     }
     
-    /// Request permission and load the music library if authorized
+    /// Request permission for both local library and Apple Music
     func requestPermissionAndLoadLibrary() {
         isLoading = true
         
-        // Check current status first
+        // First, request MediaPlayer permission (for local library)
         let currentStatus = MPMediaLibrary.authorizationStatus()
         
         if currentStatus == .authorized {
-            // Already authorized, load library
+            // Already authorized for local library
             DispatchQueue.main.async {
                 self.hasAccess = true
                 self.authorizationStatus = .authorized
                 self.loadLibrary()
+                self.requestAppleMusicPermission()
             }
         } else if currentStatus == .notDetermined {
-            // Request authorization
+            // Request local library authorization
             MPMediaLibrary.requestAuthorization { [weak self] status in
                 DispatchQueue.main.async {
                     self?.authorizationStatus = status
@@ -37,35 +47,45 @@ class MusicLibraryModel: ObservableObject {
                     
                     if status == .authorized {
                         self?.loadLibrary()
-                    } else {
-                        self?.isLoading = false
                     }
+                    self?.requestAppleMusicPermission()
                 }
             }
         } else {
-            // Permission denied or restricted
+            // Permission denied for local library, still try Apple Music
             DispatchQueue.main.async {
                 self.authorizationStatus = currentStatus
                 self.hasAccess = false
-                self.isLoading = false
+                self.requestAppleMusicPermission()
             }
         }
     }
     
-    /// Load all songs from the music library
-    private func loadLibrary() {
-        // Ensure we're on a background queue for the library query
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            // Get all songs from both local library and Apple Music
-            let songsQuery = MPMediaQuery.songs()
+    /// Request Apple Music permission
+    private func requestAppleMusicPermission() {
+        Task {
+            let status = await MusicAuthorization.request()
             
-            // Include both local and cloud items
+            await MainActor.run {
+                self.appleMusicAuthorizationStatus = status
+                self.hasAppleMusicAccess = status == .authorized
+                
+                if !self.hasAccess && !self.hasAppleMusicAccess {
+                    self.isLoading = false
+                }
+            }
+        }
+    }
+    
+    /// Load all songs from the local music library
+    private func loadLibrary() {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let songsQuery = MPMediaQuery.songs()
             songsQuery.groupingType = .title
             
             var loadedSongs: [MPMediaItem] = []
             
             if let allSongs = songsQuery.items {
-                // Sort by play count (highest first), then by title for songs with same play count
                 loadedSongs = allSongs.sorted { song1, song2 in
                     if song1.playCount == song2.playCount {
                         return (song1.title ?? "") < (song2.title ?? "")
@@ -74,11 +94,41 @@ class MusicLibraryModel: ObservableObject {
                 }
             }
             
-            // Update UI on main queue
             DispatchQueue.main.async {
                 self?.songs = loadedSongs
                 self?.isLoading = false
             }
         }
+    }
+    
+    /// Search Apple Music catalog
+    func searchAppleMusic(query: String) async {
+        guard hasAppleMusicAccess && !query.isEmpty else { return }
+        
+        await MainActor.run {
+            self.isSearchingAppleMusic = true
+        }
+        
+        do {
+            var request = MusicCatalogSearchRequest(term: query, types: [Song.self])
+            request.limit = 25
+            let response = try await request.response()
+            
+            await MainActor.run {
+                self.appleMusicSongs = Array(response.songs)
+                self.isSearchingAppleMusic = false
+            }
+        } catch {
+            print("Apple Music search error: \(error)")
+            await MainActor.run {
+                self.appleMusicSongs = []
+                self.isSearchingAppleMusic = false
+            }
+        }
+    }
+    
+    /// Clear Apple Music search results
+    func clearAppleMusicSearch() {
+        appleMusicSongs = []
     }
 }
