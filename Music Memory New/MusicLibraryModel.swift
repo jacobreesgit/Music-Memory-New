@@ -1,3 +1,10 @@
+//
+//  MusicLibraryModel.swift
+//  Music Memory New
+//
+//  Created by Jacob Rees on 19/05/2025.
+//
+
 import SwiftUI
 import MediaPlayer
 import MusicKit
@@ -12,6 +19,11 @@ class MusicLibraryModel: ObservableObject {
     @Published var authorizationStatus: MPMediaLibraryAuthorizationStatus = .notDetermined
     @Published var appleMusicAuthorizationStatus: MusicAuthorization.Status = .notDetermined
     @Published var isSearchingAppleMusic: Bool = false
+    
+    // Cache dictionaries for improving performance
+    private var songLibraryStatus: [String: Bool] = [:]
+    private var songPlayCounts: [String: Int] = [:]
+    private var localSongMatches: [String: MPMediaItem] = [:]
     
     init() {
         // Check current authorization status for both MediaPlayer and MusicKit
@@ -96,13 +108,28 @@ class MusicLibraryModel: ObservableObject {
             
             DispatchQueue.main.async {
                 self?.songs = loadedSongs
+                self?.buildSongLookupCache()
                 self?.isLoading = false
             }
         }
     }
     
-    /// Search Apple Music catalog
-    /// Search Apple Music catalog
+    /// Build lookup cache for local songs to improve performance
+    private func buildSongLookupCache() {
+        for song in songs {
+            guard let title = song.title, let artist = song.artist else { continue }
+            
+            let key = createSongKey(title: title, artist: artist, album: song.albumTitle ?? "")
+            localSongMatches[key] = song
+        }
+    }
+    
+    /// Helper function to create a consistent key for a song
+    func createSongKey(title: String, artist: String, album: String) -> String {
+        return "\(normalizeString(title))|\(normalizeString(artist))|\(normalizeString(album))"
+    }
+    
+    /// Search Apple Music catalog with improved caching
     func searchAppleMusic(query: String) async {
         guard hasAppleMusicAccess && !query.isEmpty else { return }
         
@@ -182,6 +209,7 @@ class MusicLibraryModel: ObservableObject {
             await MainActor.run {
                 self.appleMusicSongs = sortedResults
                 self.isSearchingAppleMusic = false
+                self.precomputeSongInfo()
             }
         } catch {
             print("Apple Music search error: \(error)")
@@ -192,15 +220,74 @@ class MusicLibraryModel: ObservableObject {
         }
     }
     
-    /// Clear Apple Music search results
+    /// Precompute song information to improve scrolling performance
+    private func precomputeSongInfo() {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            
+            // Clear existing caches
+            self.songLibraryStatus.removeAll()
+            self.songPlayCounts.removeAll()
+            
+            // Precompute status for all search results
+            for song in self.appleMusicSongs {
+                let key = self.createSongKey(title: song.title, artist: song.artistName, album: song.albumTitle ?? "")
+                
+                // Check if song is in library (expensive operation, so we cache it)
+                let inLibrary = self.isAppleMusicSongInLibrary(song)
+                
+                DispatchQueue.main.async {
+                    // Update caches on main thread to avoid concurrency issues
+                    self.songLibraryStatus[key] = inLibrary
+                    
+                    // If in library, cache the play count as well
+                    if inLibrary, let localSong = self.getLocalSongMatch(for: song) {
+                        self.songPlayCounts[key] = localSong.playCount
+                    }
+                }
+            }
+        }
+    }
+    
+    /// Clear Apple Music search results and caches
     func clearAppleMusicSearch() {
         appleMusicSongs = []
+        songLibraryStatus.removeAll()
+        songPlayCounts.removeAll()
+    }
+    
+    /// Efficiently check if a song is in the library using cache
+    func isSongInLibrary(_ song: Song) -> Bool {
+        let key = createSongKey(title: song.title, artist: song.artistName, album: song.albumTitle ?? "")
+        
+        // Check cache first
+        if let status = songLibraryStatus[key] {
+            return status
+        }
+        
+        // If not in cache, compute and cache for next time
+        let status = isAppleMusicSongInLibrary(song)
+        songLibraryStatus[key] = status
+        return status
+    }
+    
+    /// Get cached play count for a song
+    func getPlayCount(for song: Song) -> Int? {
+        let key = createSongKey(title: song.title, artist: song.artistName, album: song.albumTitle ?? "")
+        return songPlayCounts[key]
     }
     
     /// Check if an Apple Music song is in the local library with more precise matching
     func isAppleMusicSongInLibrary(_ appleMusicSong: Song) -> Bool {
         guard hasAccess else { return false }
         
+        // First try the cache lookup
+        let key = createSongKey(title: appleMusicSong.title, artist: appleMusicSong.artistName, album: appleMusicSong.albumTitle ?? "")
+        if let cachedMatch = localSongMatches[key] {
+            return true
+        }
+        
+        // Fall back to full search if not in cache
         return songs.contains { localSong in
             // Basic matching (title and artist)
             let titleMatch = normalizeString(localSong.title) == normalizeString(appleMusicSong.title)
@@ -224,11 +311,17 @@ class MusicLibraryModel: ObservableObject {
         }
     }
     
-    /// Get the local library song that matches an Apple Music song
+    /// Get the local library song that matches an Apple Music song, using cache when possible
     func getLocalSongMatch(for appleMusicSong: Song) -> MPMediaItem? {
         guard hasAccess else { return nil }
         
-        // First try for exact match including album and explicit status
+        // Try cache lookup first for better performance
+        let key = createSongKey(title: appleMusicSong.title, artist: appleMusicSong.artistName, album: appleMusicSong.albumTitle ?? "")
+        if let cachedMatch = localSongMatches[key] {
+            return cachedMatch
+        }
+        
+        // Fall back to full search if not in cache
         let exactMatch = songs.first { localSong in
             let titleMatch = normalizeString(localSong.title) == normalizeString(appleMusicSong.title)
             let artistMatch = normalizeString(localSong.artist) == normalizeString(appleMusicSong.artistName)
@@ -249,13 +342,12 @@ class MusicLibraryModel: ObservableObject {
             return false
         }
         
-        // Return exact match if found
-        if let exactMatch = exactMatch {
-            return exactMatch
+        // Cache the result for future lookups
+        if let match = exactMatch {
+            localSongMatches[key] = match
         }
         
-        // As a fallback, we could return a less precise match, but let's keep it strict
-        return nil
+        return exactMatch
     }
     
     /// Normalize strings for comparison (remove extra spaces, make lowercase, etc.)

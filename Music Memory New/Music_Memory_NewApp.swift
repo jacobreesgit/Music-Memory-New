@@ -1,3 +1,10 @@
+//
+//  Music_Memory_NewApp.swift
+//  Music Memory New
+//
+//  Created by Jacob Rees on 19/05/2025.
+//
+
 import SwiftUI
 import MediaPlayer
 
@@ -6,6 +13,22 @@ struct MusicMemoryApp: App {
     @StateObject private var musicLibrary = MusicLibraryModel()
     
     init() {
+        // Configure UI appearance
+        configureAppAppearance()
+    }
+    
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+                .environmentObject(musicLibrary)
+                .onAppear {
+                    // Request permission and load data when app opens
+                    musicLibrary.requestPermissionAndLoadLibrary()
+                }
+        }
+    }
+    
+    private func configureAppAppearance() {
         // Apply global appearance settings
         let appearance = UINavigationBarAppearance()
         appearance.configureWithOpaqueBackground()
@@ -19,16 +42,5 @@ struct MusicMemoryApp: App {
         
         // Set tab bar appearance
         UITabBar.appearance().backgroundColor = UIColor(AppColors.background)
-    }
-    
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-                .environmentObject(musicLibrary)
-                .onAppear {
-                    // Request permission and load data when app opens
-                    musicLibrary.requestPermissionAndLoadLibrary()
-                }
-        }
     }
 }

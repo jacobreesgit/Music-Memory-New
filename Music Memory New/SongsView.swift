@@ -1,3 +1,10 @@
+//
+//  SongsView.swift
+//  Music Memory New
+//
+//  Created by Jacob Rees on 19/05/2025.
+//
+
 import SwiftUI
 import MediaPlayer
 import MusicKit
@@ -127,24 +134,8 @@ struct SongsView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    List {
-                        ForEach(Array(musicLibrary.appleMusicSongs.enumerated()), id: \.element.id) { index, song in
-                            if let localSong = musicLibrary.getLocalSongMatch(for: song) {
-                                // If the song is in the local library, show the SongDetailView
-                                NavigationLink(destination: SongDetailView(song: localSong, rank: index + 1)) {
-                                    AppleMusicSongRow(song: song, rank: index + 1)
-                                        .environmentObject(musicLibrary)
-                                }
-                            } else {
-                                // If not in library, show the AppleMusicSongDetailView
-                                NavigationLink(destination: AppleMusicSongDetailView(song: song, rank: index + 1)) {
-                                    AppleMusicSongRow(song: song, rank: index + 1)
-                                        .environmentObject(musicLibrary)
-                                }
-                            }
-                        }
-                    }
-                    .listStyle(PlainListStyle())
+                    AppleMusicResultsList(results: musicLibrary.appleMusicSongs)
+                        .environmentObject(musicLibrary)
                 }
             }
         }
@@ -154,6 +145,55 @@ struct SongsView: View {
             if musicLibrary.songs.isEmpty && musicLibrary.hasAccess {
                 musicLibrary.requestPermissionAndLoadLibrary()
             }
+        }
+    }
+}
+
+// Separate component for Apple Music results list to improve performance
+struct AppleMusicResultsList: View {
+    @EnvironmentObject var musicLibrary: MusicLibraryModel
+    let results: [Song]
+    
+    var body: some View {
+        // Optimize rendering by using LazyVStack inside ScrollView
+        // This avoids the recomputation of all cells when list state changes
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                ForEach(Array(results.enumerated()), id: \.element.id) { index, song in
+                    AppleMusicResultRow(song: song, index: index)
+                        .environmentObject(musicLibrary)
+                }
+            }
+            .padding(.horizontal)
+        }
+    }
+}
+
+// Optimized row component for Apple Music results
+struct AppleMusicResultRow: View {
+    @EnvironmentObject var musicLibrary: MusicLibraryModel
+    let song: Song
+    let index: Int
+    @State private var isInLibrary: Bool = false
+    
+    var body: some View {
+        Group {
+            if isInLibrary, let localSong = musicLibrary.getLocalSongMatch(for: song) {
+                // If the song is in the local library, navigate to SongDetailView
+                NavigationLink(destination: SongDetailView(song: localSong, rank: index + 1)) {
+                    AppleMusicSongRow(song: song, rank: index + 1, musicLibrary: musicLibrary)
+                }
+            } else {
+                // If not in library, navigate to AppleMusicSongDetailView
+                NavigationLink(destination: AppleMusicSongDetailView(song: song, rank: index + 1)) {
+                    AppleMusicSongRow(song: song, rank: index + 1, musicLibrary: musicLibrary)
+                }
+            }
+        }
+        .padding(.vertical, 4)
+        .onAppear {
+            // Compute this property once when the row becomes visible
+            isInLibrary = musicLibrary.isSongInLibrary(song)
         }
     }
 }

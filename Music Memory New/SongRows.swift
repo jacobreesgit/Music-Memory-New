@@ -1,3 +1,10 @@
+//
+//  SongRows.swift
+//  Music Memory New
+//
+//  Created by Jacob Rees on 19/05/2025.
+//
+
 import SwiftUI
 import MediaPlayer
 import MusicKit
@@ -14,12 +21,7 @@ struct SongRow: View {
                 .rankStyle()
             
             // Artwork
-            if let artwork = song.artwork {
-                ArtworkView(uiImage: artwork.image(at: CGSize(width: AppMetrics.artworkSizeSmall, height: AppMetrics.artworkSizeSmall)),
-                           size: AppMetrics.artworkSizeSmall)
-            } else {
-                ArtworkView(uiImage: nil, size: AppMetrics.artworkSizeSmall)
-            }
+            LibraryArtworkView(artwork: song.artwork, size: AppMetrics.artworkSizeSmall)
             
             // Song info
             VStack(alignment: .leading, spacing: AppMetrics.spacingXSmall) {
@@ -63,18 +65,19 @@ struct SongRow: View {
     }
 }
 
-// MARK: - Apple Music Song Row
+// MARK: - Apple Music Song Row - Optimized for better performance
 struct AppleMusicSongRow: View {
-    @EnvironmentObject var musicLibrary: MusicLibraryModel
     let song: Song
     let rank: Int
+    let isInLibrary: Bool
+    let playCount: Int?
     
-    var isInLibrary: Bool {
-        musicLibrary.isAppleMusicSongInLibrary(song)
-    }
-    
-    var localSongPlayCount: Int? {
-        musicLibrary.getLocalSongMatch(for: song)?.playCount
+    // Optimized initializer that passes computed values rather than computing them in the view
+    init(song: Song, rank: Int, musicLibrary: MusicLibraryModel) {
+        self.song = song
+        self.rank = rank
+        self.isInLibrary = musicLibrary.isSongInLibrary(song)
+        self.playCount = musicLibrary.getPlayCount(for: song)
     }
     
     var body: some View {
@@ -83,12 +86,12 @@ struct AppleMusicSongRow: View {
             Text("#\(rank)")
                 .rankStyle(color: AppColors.appleMusicColor)
             
-            // Artwork
+            // Artwork with optimized rendering
             ZStack {
                 AsyncArtworkView(url: song.artwork?.url(width: Int(AppMetrics.artworkSizeSmall), height: Int(AppMetrics.artworkSizeSmall)),
                                size: AppMetrics.artworkSizeSmall)
                 
-                // "In Library" indicator overlay
+                // "In Library" indicator overlay - only render if needed
                 if isInLibrary {
                     VStack {
                         HStack {
@@ -107,12 +110,10 @@ struct AppleMusicSongRow: View {
             
             // Song info
             VStack(alignment: .leading, spacing: AppMetrics.spacingXSmall) {
-                HStack {
-                    Text(song.title)
-                        .font(AppFonts.bodyBold)
-                        .foregroundColor(AppColors.primaryText)
-                        .lineLimit(1)
-                }
+                Text(song.title)
+                    .font(AppFonts.bodyBold)
+                    .foregroundColor(AppColors.primaryText)
+                    .lineLimit(1)
                 
                 Text(song.artistName)
                     .font(AppFonts.caption)
@@ -134,7 +135,7 @@ struct AppleMusicSongRow: View {
                             .foregroundColor(AppColors.inLibrary)
                     }
                     
-                    if let playCount = localSongPlayCount {
+                    if let playCount = playCount {
                         Text("\(playCount) plays")
                             .font(AppFonts.caption2)
                             .fontWeight(.medium)
