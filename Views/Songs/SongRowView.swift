@@ -153,56 +153,51 @@ struct SongRowView<T>: View {
             // Apple Music indicator, play count (if in library), and album
             VStack(alignment: .trailing, spacing: Theme.Metrics.spacingXSmall) {
                 if isInLibrary {
-                    HStack(spacing: Theme.Metrics.spacingXSmall
-                           // Apple Music indicator, play count (if in library), and album
-                                           VStack(alignment: .trailing, spacing: Theme.Metrics.spacingXSmall) {
-                                               if isInLibrary {
-                                                   HStack(spacing: Theme.Metrics.spacingXSmall) {
-                                                       Image(systemName: "checkmark.circle.fill")
-                                                           .font(Theme.Typography.caption)
-                                                           .foregroundColor(Theme.Colors.inLibrary)
-                                                       Text("In Library")
-                                                           .font(Theme.Typography.caption)
-                                                           .foregroundColor(Theme.Colors.inLibrary)
-                                                   }
-                                                   
-                                                   if let playCount = playCount {
-                                                       Text("\(playCount) plays")
-                                                           .font(Theme.Typography.caption2)
-                                                           .fontWeight(.medium)
-                                                           .foregroundColor(Theme.Colors.inLibrary)
-                                                   }
-                                               } else {
-                                                   HStack(spacing: Theme.Metrics.spacingXSmall) {
-                                                       Image(systemName: "applelogo")
-                                                           .font(Theme.Typography.caption)
-                                                           .foregroundColor(Theme.Colors.appleMusicColor)
-                                                       Text("Apple Music")
-                                                           .font(Theme.Typography.caption)
-                                                           .foregroundColor(Theme.Colors.appleMusicColor)
-                                                   }
-                                               }
-                                               
-                                               Text(song.albumTitle ?? "")
-                                                   .font(Theme.Typography.caption2)
-                                                   .foregroundColor(Theme.Colors.secondaryText)
-                                                   .lineLimit(1)
-                                           }
-                                       }
-                                       .padding(.vertical, Theme.Metrics.spacingXSmall)
-                                   }
-                               }
-                           }
+                    HStack(spacing: Theme.Metrics.spacingXSmall) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(Theme.Typography.caption)
+                            .foregroundColor(Theme.Colors.inLibrary)
+                        Text("In Library")
+                            .font(Theme.Typography.caption)
+                            .foregroundColor(Theme.Colors.inLibrary)
+                    }
+                    
+                    if let playCount = playCount {
+                        Text("\(playCount) plays")
+                            .font(Theme.Typography.caption2)
+                            .fontWeight(.medium)
+                            .foregroundColor(Theme.Colors.inLibrary)
+                    }
+                } else {
+                    HStack(spacing: Theme.Metrics.spacingXSmall) {
+                        Image(systemName: "applelogo")
+                            .font(Theme.Typography.caption)
+                            .foregroundColor(Theme.Colors.appleMusicColor)
+                        Text("Apple Music")
+                            .font(Theme.Typography.caption)
+                            .foregroundColor(Theme.Colors.appleMusicColor)
+                    }
+                }
+                
+                Text(song.albumTitle ?? "")
+                    .font(Theme.Typography.caption2)
+                    .foregroundColor(Theme.Colors.secondaryText)
+                    .lineLimit(1)
+            }
+        }
+        .padding(.vertical, Theme.Metrics.spacingXSmall)
+    }
+}
 
-                           // Factory method to create the appropriate SongRowView from a model
-                           extension SongRowView {
-                               static func create(from song: MPMediaItem, rank: Int) -> some View {
-                                   SongRowView<MPMediaItem>(song: song, rank: rank)
-                               }
-                               
-                               static func create(from song: Song, rank: Int, musicLibrary: MusicLibraryModel) -> some View {
-                                   let isInLibrary = musicLibrary.isSongInLibrary(song)
-                                   let playCount = musicLibrary.getPlayCount(for: song)
-                                   return SongRowView<Song>(song: song, rank: rank, isInLibrary: isInLibrary, playCount: playCount)
-                               }
-                           }
+// Factory method to create the appropriate SongRowView from a model
+extension SongRowView {
+    static func create(from song: MPMediaItem, rank: Int) -> some View {
+        SongRowView<MPMediaItem>(song: song, rank: rank)
+    }
+    
+    static func create(from song: Song, rank: Int, musicLibrary: MusicLibraryModel) -> some View {
+        let isInLibrary = musicLibrary.isSongInLibrary(song)
+        let playCount = musicLibrary.getPlayCount(for: song)
+        return SongRowView<Song>(song: song, rank: rank, isInLibrary: isInLibrary, playCount: playCount)
+    }
+}

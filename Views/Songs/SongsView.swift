@@ -149,15 +149,16 @@ struct EmptyStateView: View {
 struct LocalSongsList: View {
     let songs: [MPMediaItem]
     
-    var body: some View {
-        List {
-            ForEach(Array(songs.enumerated()), id: \.element.persistentID) { index, song in
-                NavigationLink(destination: SongDetailView(song: song, rank: index + 1)) {
-                    SongRowView.create(from: song, rank: index + 1)
-                }
-            }
+    extension SongRowView {
+        static func create(from song: MPMediaItem, rank: Int) -> SongRowView<MPMediaItem> {
+            return SongRowView<MPMediaItem>(song: song, rank: rank)
         }
-        .listStyle(PlainListStyle())
+        
+        static func create(from song: Song, rank: Int, musicLibrary: MusicLibraryModel) -> SongRowView<Song> {
+            let isInLibrary = musicLibrary.isSongInLibrary(song)
+            let playCount = musicLibrary.getPlayCount(for: song)
+            return SongRowView<Song>(song: song, rank: rank, isInLibrary: isInLibrary, playCount: playCount)
+        }
     }
 }
 

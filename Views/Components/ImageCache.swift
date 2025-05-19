@@ -52,8 +52,8 @@ struct CachedAsyncImage: View {
                     .aspectRatio(contentMode: .fill)
             } else {
                 ZStack {
-                    RoundedRectangle(cornerRadius: AppMetrics.cornerRadiusSmall)
-                        .fill(AppColors.secondaryBackground)
+                    RoundedRectangle(cornerRadius: Theme.Metrics.cornerRadiusSmall)
+                        .fill(Theme.Colors.secondaryBackground)
                     
                     Image(systemName: "music.note")
                         .iconStyle(size: size * 0.4)
@@ -61,8 +61,8 @@ struct CachedAsyncImage: View {
             }
         }
         .frame(width: size, height: size)
-        .cornerRadius(AppMetrics.cornerRadiusSmall)
-        .applyShadow(AppShadows.small)
+        .cornerRadius(Theme.Metrics.cornerRadiusSmall)
+        .applyShadow(Theme.Shadows.small)
         .onAppear {
             loadImage()
         }

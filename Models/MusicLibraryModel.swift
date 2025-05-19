@@ -211,7 +211,7 @@ class MusicLibraryModel: ObservableObject {
         guard hasAccess else { return false }
         
         // First try direct lookup
-        let key = createSongKey(title: appleMusicSong.title, artist: appleMusicSong.artistName, album: appleMusicSong.albumTitle ?? "")
+        _ = createSongKey(title: appleMusicSong.title, artist: appleMusicSong.artistName, album: appleMusicSong.albumTitle ?? "")
         if localLibrary.findLocalSong(title: appleMusicSong.title, artist: appleMusicSong.artistName, album: appleMusicSong.albumTitle ?? "") != nil {
             return true
         }
