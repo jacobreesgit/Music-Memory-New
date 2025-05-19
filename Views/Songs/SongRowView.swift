@@ -20,8 +20,7 @@ struct SongRowView<T>: View {
     let rank: Int
     let sourceType: SourceType
     
-    // For Apple Music songs
-    private var isInLibrary: Bool = false
+    // Simplified constructor for Apple Music songs (no longer needs library status)
     private var playCount: Int? = nil
     
     // Initializer for local library songs
@@ -31,13 +30,16 @@ struct SongRowView<T>: View {
         self.sourceType = .localLibrary
     }
     
-    // Initializer for Apple Music songs
-    init(song: Song, rank: Int, isInLibrary: Bool, playCount: Int?) {
+    // Simplified initializer for Apple Music songs - no longer tracks library status
+    init(song: Song, rank: Int, musicLibrary: MusicLibraryModel) {
         self.item = song as! T
         self.rank = rank
         self.sourceType = .appleMusic
-        self.isInLibrary = isInLibrary
-        self.playCount = playCount
+        
+        // Only get play count if it's a local song we're showing via Apple Music
+        if let localSong = musicLibrary.getLocalSongMatch(for: song) {
+            self.playCount = localSong.playCount
+        }
     }
     
     var body: some View {
@@ -130,12 +132,7 @@ struct SongRowView<T>: View {
                             .explicitBadgeStyle()
                     }
                     
-                    // Library indicator (subtle)
-                    if isInLibrary {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(Theme.Colors.inLibrary)
-                    }
+                    // Remove the library indicator completely
                     
                     Spacer()
                 }
@@ -147,11 +144,11 @@ struct SongRowView<T>: View {
             }
             
             // Play count for Apple Music songs (if in library)
-            if isInLibrary, let playCount = playCount {
+            if let playCount = playCount {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("\(playCount)")
                         .font(Theme.Typography.subheadlineBold)
-                        .foregroundColor(Theme.Colors.inLibrary)
+                        .foregroundColor(Theme.Colors.appleMusicColor)
                     
                     Text("plays")
                         .font(Theme.Typography.caption2)
@@ -159,15 +156,9 @@ struct SongRowView<T>: View {
                 }
             } else {
                 // Show Apple Music indicator if not in library
-                VStack(alignment: .trailing, spacing: 2) {
-                    Image(systemName: "applelogo")
-                        .font(.system(size: 14))
-                        .foregroundColor(Theme.Colors.appleMusicColor)
-                    
-                    Text("Apple Music")
-                        .font(Theme.Typography.caption2)
-                        .foregroundColor(Theme.Colors.appleMusicColor)
-                }
+                Image(systemName: "applelogo")
+                    .font(.system(size: 14))
+                    .foregroundColor(Theme.Colors.appleMusicColor)
             }
         }
         .padding(.vertical, Theme.Metrics.songRowVerticalPadding)
@@ -182,8 +173,7 @@ extension SongRowView {
     }
     
     static func create(from song: Song, rank: Int, musicLibrary: MusicLibraryModel) -> SongRowView<Song> {
-        let isInLibrary = musicLibrary.isSongInLibrary(song)
-        let playCount = musicLibrary.getPlayCount(for: song)
-        return SongRowView<Song>(song: song, rank: rank, isInLibrary: isInLibrary, playCount: playCount)
+        // Simplified constructor - no longer tracks library status
+        return SongRowView<Song>(song: song, rank: rank, musicLibrary: musicLibrary)
     }
 }
