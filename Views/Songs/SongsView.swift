@@ -115,6 +115,7 @@ struct SongsView: View {
         }
         .padding(.top, Theme.Metrics.paddingMedium)
         .navigationTitle("Songs")
+        .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             // Refresh library when view appears
             if musicLibrary.songs.isEmpty && musicLibrary.hasAccess {
