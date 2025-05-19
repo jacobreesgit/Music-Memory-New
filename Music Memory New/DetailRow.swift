@@ -9,17 +9,17 @@ struct DetailRow: View {
         VStack(spacing: 0) {
             HStack {
                 Text(title)
-                    .font(.body)
-                    .foregroundColor(.secondary)
+                    .font(AppFonts.body)
+                    .foregroundColor(AppColors.secondaryText)
                 
                 Spacer()
                 
                 Text(value)
-                    .font(.body)
-                    .fontWeight(.medium)
+                    .font(AppFonts.body)
+                    .foregroundColor(AppColors.primaryText)
                     .multilineTextAlignment(.trailing)
             }
-            .padding(.vertical, 12)
+            .padding(.vertical, AppMetrics.paddingSmall)
             
             if !isLast {
                 Divider()

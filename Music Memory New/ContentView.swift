@@ -8,64 +8,62 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             if musicLibrary.isLoading {
-                VStack(spacing: 20) {
+                VStack(spacing: AppMetrics.spacingLarge) {
                     ProgressView()
                         .scaleEffect(1.5)
                     Text("Loading your music library...")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
+                        .font(AppFonts.subheadlineBold)
+                        .foregroundColor(AppColors.secondaryText)
                 }
             } else if !musicLibrary.hasAccess && !musicLibrary.hasAppleMusicAccess {
-                VStack(spacing: 30) {
+                VStack(spacing: AppMetrics.spacingXLarge) {
                     Image(systemName: "music.note.list")
-                        .font(.system(size: 60))
-                        .foregroundColor(.purple)
+                        .iconStyle(size: AppMetrics.iconSizeXLarge, color: AppColors.primary)
                     
                     Text("Music Access Required")
-                        .font(.title2)
-                        .fontWeight(.bold)
+                        .font(AppFonts.title2)
+                        .foregroundColor(AppColors.primaryText)
                     
-                    VStack(spacing: 16) {
+                    VStack(spacing: AppMetrics.spacingMedium) {
                         if !musicLibrary.hasAccess {
-                            VStack(spacing: 8) {
+                            VStack(spacing: AppMetrics.spacingSmall) {
                                 Text("Local Music Library")
-                                    .font(.headline)
+                                    .font(AppFonts.bodyBold)
                                 Text("Allow access to your downloaded music in Settings")
-                                    .font(.body)
-                                    .foregroundColor(.secondary)
+                                    .font(AppFonts.body)
+                                    .foregroundColor(AppColors.secondaryText)
                                     .multilineTextAlignment(.center)
                             }
                         }
                         
                         if !musicLibrary.hasAppleMusicAccess {
-                            VStack(spacing: 8) {
+                            VStack(spacing: AppMetrics.spacingSmall) {
                                 Text("Apple Music")
-                                    .font(.headline)
+                                    .font(AppFonts.bodyBold)
                                 Text("Allow access to search the Apple Music catalog")
-                                    .font(.body)
-                                    .foregroundColor(.secondary)
+                                    .font(AppFonts.body)
+                                    .foregroundColor(AppColors.secondaryText)
                                     .multilineTextAlignment(.center)
                             }
                         }
                     }
                     .padding(.horizontal)
                     
-                    VStack(spacing: 12) {
+                    VStack(spacing: AppMetrics.spacingSmall) {
                         Button("Allow Access") {
                             musicLibrary.requestPermissionAndLoadLibrary()
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.purple)
+                        .buttonStyle(PrimaryButtonStyle())
                         
                         Button("Open Settings") {
                             if let url = URL(string: UIApplication.openSettingsURLString) {
                                 UIApplication.shared.open(url)
                             }
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(SecondaryButtonStyle())
                     }
                 }
-                .padding()
+                .padding(AppMetrics.paddingLarge)
             } else {
                 SongsView()
             }

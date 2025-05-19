@@ -11,85 +11,72 @@ struct SongDetailView: View {
     
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
+            VStack(spacing: AppMetrics.spacingXLarge) {
                 // Header with artwork and basic info
-                VStack(spacing: 16) {
+                VStack(spacing: AppMetrics.spacingMedium) {
                     // Large artwork
                     if let artwork = song.artwork {
-                        Image(uiImage: artwork.image(at: CGSize(width: 250, height: 250)) ?? UIImage(systemName: "music.note")!)
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: 250, height: 250)
-                            .cornerRadius(12)
-                            .shadow(radius: 10)
+                        ArtworkView(uiImage: artwork.image(at: CGSize(width: AppMetrics.artworkSizeLarge, height: AppMetrics.artworkSizeLarge)),
+                                    size: AppMetrics.artworkSizeLarge)
+                            .applyShadow(AppShadows.medium)
                     } else {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color(.systemGray5))
-                                .frame(width: 250, height: 250)
-                            
-                            Image(systemName: "music.note")
-                                .font(.system(size: 80))
-                                .foregroundColor(.secondary)
-                        }
-                        .shadow(radius: 10)
+                        ArtworkView(uiImage: nil, size: AppMetrics.artworkSizeLarge)
+                            .applyShadow(AppShadows.medium)
                     }
                     
                     // Song title and artist
-                    VStack(spacing: 8) {
+                    VStack(spacing: AppMetrics.spacingSmall) {
                         Text(song.title ?? "Unknown")
-                            .font(.title2)
-                            .fontWeight(.bold)
+                            .font(AppFonts.title2)
+                            .foregroundColor(AppColors.primaryText)
                             .multilineTextAlignment(.center)
                         
                         if let artist = song.artist {
                             Text(artist)
-                                .font(.title3)
-                                .foregroundColor(.secondary)
+                                .font(AppFonts.title3)
+                                .foregroundColor(AppColors.secondaryText)
                                 .multilineTextAlignment(.center)
                         }
                         
                         // Rank and play count indicators
-                        HStack(spacing: 16) {
+                        HStack(spacing: AppMetrics.spacingLarge) {
                             VStack {
                                 Text("#\(rank)")
-                                    .font(.title)
+                                    .font(AppFonts.title)
                                     .fontWeight(.bold)
-                                    .foregroundColor(.purple)
+                                    .foregroundColor(AppColors.primary)
                                 Text("Rank")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .font(AppFonts.caption)
+                                    .foregroundColor(AppColors.secondaryText)
                             }
                             
                             VStack {
                                 Text("\(song.playCount)")
-                                    .font(.title)
+                                    .font(AppFonts.title)
                                     .fontWeight(.bold)
-                                    .foregroundColor(.purple)
+                                    .foregroundColor(AppColors.primary)
                                 Text("Plays")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .font(AppFonts.caption)
+                                    .foregroundColor(AppColors.secondaryText)
                             }
-                            
-                            // Apple Music indicator removed
                         }
-                        .padding(.top, 8)
+                        .padding(.top, AppMetrics.paddingSmall)
                     }
                 }
                 
                 // Song details
                 VStack(alignment: .leading, spacing: 0) {
                     Text("Song Details")
-                        .font(.headline)
-                        .padding(.bottom, 16)
+                        .font(AppFonts.bodyBold)
+                        .padding(.bottom, AppMetrics.paddingMedium)
                     
                     LazyVStack(spacing: 0) {
                         DetailRow(title: "Album", value: song.albumTitle ?? "Unknown")
                         DetailRow(title: "Genre", value: song.genre ?? "Unknown")
-                        DetailRow(title: "Duration", value: formatDuration(song.playbackDuration))
-                        DetailRow(title: "Release Year", value: formatYear(song.releaseDate))
-                        DetailRow(title: "Date Added", value: formatDate(song.dateAdded))
-                        DetailRow(title: "Last Played", value: formatDate(song.lastPlayedDate))
+                        DetailRow(title: "Duration", value: AppHelpers.formatDuration(song.playbackDuration))
+                        DetailRow(title: "Release Year", value: AppHelpers.formatYear(song.releaseDate))
+                        DetailRow(title: "Date Added", value: AppHelpers.formatDate(song.dateAdded))
+                        DetailRow(title: "Last Played", value: AppHelpers.formatDate(song.lastPlayedDate))
                         
                         if song.albumTrackNumber > 0 {
                             DetailRow(title: "Track Number", value: "\(song.albumTrackNumber)")
@@ -188,27 +175,5 @@ struct SongDetailView: View {
                 }
             }
         }
-    }
-    
-    private func formatDuration(_ timeInterval: TimeInterval) -> String {
-        let totalSeconds = Int(timeInterval)
-        let minutes = totalSeconds / 60
-        let seconds = totalSeconds % 60
-        return String(format: "%d:%02d", minutes, seconds)
-    }
-    
-    private func formatDate(_ date: Date?) -> String {
-        guard let date = date else { return "Unknown" }
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .none
-        return formatter.string(from: date)
-    }
-    
-    private func formatYear(_ date: Date?) -> String {
-        guard let date = date else { return "Unknown" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy"
-        return formatter.string(from: date)
     }
 }

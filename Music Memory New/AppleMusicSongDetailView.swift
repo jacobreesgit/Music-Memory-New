@@ -17,112 +17,96 @@ struct AppleMusicSongDetailView: View {
     
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
+            VStack(spacing: AppMetrics.spacingXLarge) {
                 // Header with artwork and basic info
-                VStack(spacing: 16) {
+                VStack(spacing: AppMetrics.spacingMedium) {
                     // Large artwork with library indicator
                     ZStack {
-                        AsyncImage(url: song.artwork?.url(width: 250, height: 250)) { image in
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: 250, height: 250)
-                                .cornerRadius(12)
-                                .shadow(radius: 10)
-                        } placeholder: {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color(.systemGray5))
-                                    .frame(width: 250, height: 250)
-                                
-                                Image(systemName: "music.note")
-                                    .font(.system(size: 80))
-                                    .foregroundColor(.secondary)
-                            }
-                            .shadow(radius: 10)
-                        }
+                        AsyncArtworkView(
+                            url: song.artwork?.url(width: Int(AppMetrics.artworkSizeLarge), height: Int(AppMetrics.artworkSizeLarge)),
+                            size: AppMetrics.artworkSizeLarge
+                        )
+                        .applyShadow(AppShadows.medium)
                         
                         // "In Library" indicator overlay
                         if isInLibrary {
                             VStack {
                                 HStack {
                                     Spacer()
-                                    VStack(spacing: 4) {
+                                    VStack(spacing: AppMetrics.spacingXSmall) {
                                         Image(systemName: "checkmark.circle.fill")
-                                            .font(.title2)
+                                            .font(AppFonts.title2)
                                             .foregroundColor(.white)
-                                            .background(Color.green)
+                                            .background(AppColors.inLibrary)
                                             .clipShape(Circle())
                                         
                                         Text("IN LIBRARY")
-                                            .font(.caption2)
+                                            .font(AppFonts.caption2)
                                             .fontWeight(.bold)
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 4)
-                                            .background(Color.green)
+                                            .padding(.horizontal, AppMetrics.paddingSmall)
+                                            .padding(.vertical, AppMetrics.spacingXSmall)
+                                            .background(AppColors.inLibrary)
                                             .foregroundColor(.white)
-                                            .cornerRadius(12)
+                                            .cornerRadius(AppMetrics.cornerRadiusSmall)
                                     }
                                 }
                                 Spacer()
                             }
-                            .padding(12)
+                            .padding(AppMetrics.paddingSmall)
                         }
                     }
                     
                     // Song title and artist
-                    VStack(spacing: 8) {
+                    VStack(spacing: AppMetrics.spacingSmall) {
                         Text(song.title)
-                            .font(.title2)
-                            .fontWeight(.bold)
+                            .font(AppFonts.title2)
+                            .foregroundColor(AppColors.primaryText)
                             .multilineTextAlignment(.center)
                         
                         Text(song.artistName)
-                            .font(.title3)
-                            .foregroundColor(.secondary)
+                            .font(AppFonts.title3)
+                            .foregroundColor(AppColors.secondaryText)
                             .multilineTextAlignment(.center)
                         
                         // Rank and library status indicators
-                        HStack(spacing: 16) {
+                        HStack(spacing: AppMetrics.spacingLarge) {
                             VStack {
                                 Text("#\(rank)")
-                                    .font(.title)
+                                    .font(AppFonts.title)
                                     .fontWeight(.bold)
-                                    .foregroundColor(.red)
+                                    .foregroundColor(AppColors.appleMusicColor)
                                 Text("Search Result")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .font(AppFonts.caption)
+                                    .foregroundColor(AppColors.secondaryText)
                             }
-                            
-                            // Apple Music indicator removed
                             
                             // Library status indicator
                             VStack {
-                                HStack(spacing: 4) {
+                                HStack(spacing: AppMetrics.spacingXSmall) {
                                     Image(systemName: isInLibrary ? "checkmark.circle.fill" : "circle")
-                                        .font(.title2)
-                                        .foregroundColor(isInLibrary ? .green : .gray)
+                                        .font(AppFonts.title2)
+                                        .foregroundColor(isInLibrary ? AppColors.inLibrary : AppColors.secondaryText)
                                     Text(isInLibrary ? "In Library" : "Not in Library")
-                                        .font(.title3)
+                                        .font(AppFonts.title3)
                                         .fontWeight(.medium)
-                                        .foregroundColor(isInLibrary ? .green : .gray)
+                                        .foregroundColor(isInLibrary ? AppColors.inLibrary : AppColors.secondaryText)
                                 }
                                 if isInLibrary, let playCount = localSongMatch?.playCount {
                                     Text("\(playCount) plays")
-                                        .font(.caption)
-                                        .foregroundColor(.green)
+                                        .font(AppFonts.caption)
+                                        .foregroundColor(AppColors.inLibrary)
                                 }
                             }
                         }
-                        .padding(.top, 8)
+                        .padding(.top, AppMetrics.paddingSmall)
                     }
                 }
                 
                 // Song details
                 VStack(alignment: .leading, spacing: 0) {
                     Text("Song Details")
-                        .font(.headline)
-                        .padding(.bottom, 16)
+                        .font(AppFonts.bodyBold)
+                        .padding(.bottom, AppMetrics.paddingMedium)
                     
                     LazyVStack(spacing: 0) {
                         DetailRow(title: "Album", value: song.albumTitle ?? "Unknown")
@@ -132,11 +116,11 @@ struct AppleMusicSongDetailView: View {
                         }
                         
                         if let duration = song.duration {
-                            DetailRow(title: "Duration", value: formatDuration(duration))
+                            DetailRow(title: "Duration", value: AppHelpers.formatDuration(duration))
                         }
                         
                         if let releaseDate = song.releaseDate {
-                            DetailRow(title: "Release Date", value: formatDate(releaseDate))
+                            DetailRow(title: "Release Date", value: AppHelpers.formatDate(releaseDate))
                         }
                         
                         if let trackNumber = song.trackNumber {
@@ -172,11 +156,7 @@ struct AppleMusicSongDetailView: View {
                                 DetailRow(title: "Play Count", value: "\(localSong.playCount)")
                                 
                                 if let lastPlayed = localSong.lastPlayedDate {
-                                    DetailRow(title: "Last Played", value: formatDate(lastPlayed))
-                                }
-                                
-                                if let releaseDate = song.releaseDate {
-                                    DetailRow(title: "Release Date", value: formatDate(releaseDate))
+                                    DetailRow(title: "Last Played", value: AppHelpers.formatDate(lastPlayed))
                                 }
                             }
                         } else {
@@ -194,19 +174,5 @@ struct AppleMusicSongDetailView: View {
         }
         .navigationTitle(song.title)
         .navigationBarTitleDisplayMode(.inline)
-    }
-    
-    private func formatDuration(_ duration: TimeInterval) -> String {
-        let totalSeconds = Int(duration)
-        let minutes = totalSeconds / 60
-        let seconds = totalSeconds % 60
-        return String(format: "%d:%02d", minutes, seconds)
-    }
-    
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .none
-        return formatter.string(from: date)
     }
 }

@@ -25,10 +25,10 @@ struct SongsView: View {
             // Search bar
             HStack {
                 Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
+                    .iconStyle()
                 
                 TextField("Search songs", text: $searchText)
-                    .textFieldStyle(PlainTextFieldStyle())
+                    .font(AppFonts.body)
                     .onChange(of: searchText) { oldValue, newValue in
                         // Debounce Apple Music search
                         searchDebounceTimer?.invalidate()
@@ -49,14 +49,11 @@ struct SongsView: View {
                         musicLibrary.clearAppleMusicSearch()
                     }) {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
+                            .iconStyle()
                     }
                 }
             }
-            .padding(10)
-            .background(Color(.systemGray5))
-            .cornerRadius(10)
-            .padding(.horizontal)
+            .searchBarStyle()
             
             // Tabs for Library vs Apple Music
             if musicLibrary.hasAppleMusicAccess {
@@ -66,26 +63,25 @@ struct SongsView: View {
                 }
                 .pickerStyle(SegmentedPickerStyle())
                 .padding(.horizontal)
-                .padding(.top, 8)
+                .padding(.top, AppMetrics.paddingSmall)
             }
             
             // Content based on selected tab
             if selectedTab == 0 {
                 // Local library songs
                 if filteredLocalSongs.isEmpty {
-                    VStack(spacing: 20) {
+                    VStack(spacing: AppMetrics.spacingLarge) {
                         Image(systemName: "music.note")
-                            .font(.system(size: 50))
-                            .foregroundColor(.secondary)
+                            .iconStyle(size: AppMetrics.iconSizeXLarge)
                         
                         Text(searchText.isEmpty ? "No songs found" : "No songs match '\(searchText)'")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
+                            .font(AppFonts.bodyBold)
+                            .foregroundColor(AppColors.secondaryText)
                         
                         if searchText.isEmpty {
                             Text("Your music library appears to be empty or the app doesn't have permission to access it.")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
+                                .font(AppFonts.subheadline)
+                                .foregroundColor(AppColors.secondaryText)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal)
                         }
@@ -104,28 +100,27 @@ struct SongsView: View {
             } else {
                 // Apple Music search results
                 if musicLibrary.isSearchingAppleMusic {
-                    VStack(spacing: 20) {
+                    VStack(spacing: AppMetrics.spacingLarge) {
                         ProgressView()
                             .scaleEffect(1.2)
                         Text("Searching Apple Music...")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .font(AppFonts.subheadline)
+                            .foregroundColor(AppColors.secondaryText)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if musicLibrary.appleMusicSongs.isEmpty {
-                    VStack(spacing: 20) {
+                    VStack(spacing: AppMetrics.spacingLarge) {
                         Image(systemName: "magnifyingglass")
-                            .font(.system(size: 50))
-                            .foregroundColor(.secondary)
+                            .iconStyle(size: AppMetrics.iconSizeXLarge)
                         
                         Text(searchText.isEmpty ? "Search Apple Music" : "No results found")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
+                            .font(AppFonts.bodyBold)
+                            .foregroundColor(AppColors.secondaryText)
                         
                         if searchText.isEmpty {
                             Text("Type to search millions of songs in the Apple Music catalog")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
+                                .font(AppFonts.subheadline)
+                                .foregroundColor(AppColors.secondaryText)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal)
                         }
@@ -160,194 +155,5 @@ struct SongsView: View {
                 musicLibrary.requestPermissionAndLoadLibrary()
             }
         }
-    }
-}
-
-// MARK: - Local Library Song Row
-struct SongRow: View {
-    let song: MPMediaItem
-    let rank: Int
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            // Rank
-            Text("#\(rank)")
-                .font(.system(size: 16, weight: .bold))
-                .foregroundColor(.purple)
-                .frame(width: 40, alignment: .leading)
-            
-            // Artwork
-            if let artwork = song.artwork {
-                Image(uiImage: artwork.image(at: CGSize(width: 50, height: 50)) ?? UIImage(systemName: "music.note")!)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 50, height: 50)
-                    .cornerRadius(8)
-            } else {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color(.systemGray5))
-                        .frame(width: 50, height: 50)
-                    
-                    Image(systemName: "music.note")
-                        .font(.system(size: 24))
-                        .foregroundColor(.secondary)
-                }
-            }
-            
-            // Song info
-            VStack(alignment: .leading, spacing: 4) {
-                Text(song.title ?? "Unknown")
-                    .font(.body)
-                    .fontWeight(.medium)
-                    .lineLimit(1)
-                
-                if let artist = song.artist {
-                    Text(artist)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                }
-            }
-            
-            Spacer()
-            
-            // Play count and cloud indicator
-            VStack(alignment: .trailing, spacing: 4) {
-                HStack(spacing: 4) {
-                    Text("\(song.playCount) plays")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.purple)
-                    
-                    if song.isCloudItem {
-                        Image(systemName: "cloud")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                if let albumTitle = song.albumTitle {
-                    Text(albumTitle)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                }
-            }
-        }
-        .padding(.vertical, 4)
-    }
-}
-
-// MARK: - Apple Music Song Row
-struct AppleMusicSongRow: View {
-    @EnvironmentObject var musicLibrary: MusicLibraryModel
-    let song: Song
-    let rank: Int
-    
-    var isInLibrary: Bool {
-        musicLibrary.isAppleMusicSongInLibrary(song)
-    }
-    
-    var localSongPlayCount: Int? {
-        musicLibrary.getLocalSongMatch(for: song)?.playCount
-    }
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            // Rank
-            Text("#\(rank)")
-                .font(.system(size: 16, weight: .bold))
-                .foregroundColor(.red) // Different color for Apple Music
-                .frame(width: 40, alignment: .leading)
-            
-            // Artwork
-            AsyncImage(url: song.artwork?.url(width: 50, height: 50)) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } placeholder: {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color(.systemGray5))
-                    
-                    Image(systemName: "music.note")
-                        .font(.system(size: 24))
-                        .foregroundColor(.secondary)
-                }
-            }
-            .frame(width: 50, height: 50)
-            .cornerRadius(8)
-            .overlay(
-                // "In Library" indicator overlay
-                isInLibrary ?
-                VStack {
-                    HStack {
-                        Spacer()
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.caption)
-                            .foregroundColor(.white)
-                            .background(Color.green)
-                            .clipShape(Circle())
-                    }
-                    Spacer()
-                }
-                .padding(2)
-                : nil
-            )
-            
-            // Song info
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(song.title)
-                        .font(.body)
-                        .fontWeight(.medium)
-                        .lineLimit(1)
-                }
-                
-                Text(song.artistName)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-            }
-            
-            Spacer()
-            
-            // Apple Music indicator, play count (if in library), and album
-            VStack(alignment: .trailing, spacing: 4) {
-                if isInLibrary {
-                    HStack(spacing: 4) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.caption)
-                            .foregroundColor(.green)
-                        Text("In Library")
-                            .font(.caption)
-                            .foregroundColor(.green)
-                    }
-                    
-                    if let playCount = localSongPlayCount {
-                        Text("\(playCount) plays")
-                            .font(.caption2)
-                            .fontWeight(.medium)
-                            .foregroundColor(.green)
-                    }
-                } else {
-                    HStack(spacing: 4) {
-                        Image(systemName: "applelogo")
-                            .font(.caption)
-                            .foregroundColor(.red)
-                        Text("Apple Music")
-                            .font(.caption)
-                            .foregroundColor(.red)
-                    }
-                }
-                
-                Text(song.albumTitle ?? "")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-            }
-        }
-        .padding(.vertical, 4)
     }
 }

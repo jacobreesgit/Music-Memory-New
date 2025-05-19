@@ -5,6 +5,22 @@ import MediaPlayer
 struct MusicMemoryApp: App {
     @StateObject private var musicLibrary = MusicLibraryModel()
     
+    init() {
+        // Apply global appearance settings
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithOpaqueBackground()
+        appearance.backgroundColor = UIColor(AppColors.background)
+        appearance.titleTextAttributes = [.foregroundColor: UIColor(AppColors.primaryText)]
+        appearance.largeTitleTextAttributes = [.foregroundColor: UIColor(AppColors.primaryText)]
+        
+        UINavigationBar.appearance().standardAppearance = appearance
+        UINavigationBar.appearance().compactAppearance = appearance
+        UINavigationBar.appearance().scrollEdgeAppearance = appearance
+        
+        // Set tab bar appearance
+        UITabBar.appearance().backgroundColor = UIColor(AppColors.background)
+    }
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
