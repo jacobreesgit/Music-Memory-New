@@ -82,8 +82,10 @@ struct SongsView: View {
                         title: searchText.isEmpty ? "No songs found" : "No songs match '\(searchText)'",
                         message: searchText.isEmpty ? "Your music library appears to be empty or the app doesn't have permission to access it." : nil
                     )
+                    .padding(.top, Theme.Metrics.paddingSmall)
                 } else {
                     LocalSongsList(songs: filteredLocalSongs)
+                        .padding(.top, Theme.Metrics.paddingSmall)
                 }
             } else {
                 // Apple Music search results
@@ -96,14 +98,17 @@ struct SongsView: View {
                             .foregroundColor(Theme.Colors.secondaryText)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.top, Theme.Metrics.paddingSmall)
                 } else if musicLibrary.appleMusicSongs.isEmpty {
                     EmptyStateView(
                         icon: "magnifyingglass",
                         title: searchText.isEmpty ? "Search Apple Music" : "No results found",
                         message: searchText.isEmpty ? "Type to search millions of songs in the Apple Music catalog" : nil
                     )
+                    .padding(.top, Theme.Metrics.paddingSmall)
                 } else {
                     AppleMusicResultsList(results: musicLibrary.appleMusicSongs)
+                        .padding(.top, Theme.Metrics.paddingSmall)
                 }
             }
         }
@@ -159,7 +164,7 @@ struct LocalSongsList: View {
                     .padding(.vertical, 4)
                 }
             }
-            .padding(.horizontal)
+            .padding(.horizontal, Theme.Metrics.paddingMedium + Theme.Metrics.paddingSmall)
         }
     }
 }
@@ -176,7 +181,7 @@ struct AppleMusicResultsList: View {
                     AppleMusicResultRow(song: song, index: index)
                 }
             }
-            .padding(.horizontal)
+            .padding(.horizontal, Theme.Metrics.paddingMedium + Theme.Metrics.paddingSmall)
         }
     }
 }
