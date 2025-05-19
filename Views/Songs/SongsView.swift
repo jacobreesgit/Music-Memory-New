@@ -12,7 +12,6 @@ import MusicKit
 struct SongsView: View {
     @EnvironmentObject var musicLibrary: MusicLibraryModel
     @State private var searchText = ""
-    @State private var selectedTab = 0
     @State private var searchDebounceTimer: Timer?
     
     var filteredLocalSongs: [MPMediaItem] {
@@ -63,54 +62,60 @@ struct SongsView: View {
             }
             .searchBarStyle()
             
-            // Tabs for Library vs Apple Music
-            if musicLibrary.hasAppleMusicAccess {
-                Picker("Source", selection: $selectedTab) {
-                    Text("My Library").tag(0)
-                    Text("Apple Music").tag(1)
-                }
-                .pickerStyle(SegmentedPickerStyle())
-                .padding(.horizontal)
-                .padding(.top, Theme.Metrics.paddingSmall)
-            }
-            
-            // Content based on selected tab
-            if selectedTab == 0 {
-                // Local library songs
-                if filteredLocalSongs.isEmpty {
-                    EmptyStateView(
-                        icon: "music.note",
-                        title: searchText.isEmpty ? "No songs found" : "No songs match '\(searchText)'",
-                        message: searchText.isEmpty ? "Your music library appears to be empty or the app doesn't have permission to access it." : nil
-                    )
-                    .padding(.top, Theme.Metrics.paddingSmall)
-                } else {
-                    LocalSongsList(songs: filteredLocalSongs)
+            // Combined results in one scrollview
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    // Library results section
+                    if !filteredLocalSongs.isEmpty {
+                        ForEach(Array(filteredLocalSongs.enumerated()), id: \.element.persistentID) { index, song in
+                            NavigationLink(destination: SongDetailView(song: song, rank: index + 1)) {
+                                SongRowView<MPMediaItem>.create(from: song, rank: index + 1)
+                            }
+                            .padding(.vertical, 4)
+                        }
+                        .padding(.horizontal, Theme.Metrics.paddingMedium + Theme.Metrics.paddingSmall)
+                    } else if searchText.isEmpty {
+                        // Empty library state
+                        EmptyStateView(
+                            icon: "music.note",
+                            title: "No songs found",
+                            message: "Your music library appears to be empty or the app doesn't have permission to access it."
+                        )
                         .padding(.top, Theme.Metrics.paddingSmall)
-                }
-            } else {
-                // Apple Music search results
-                if musicLibrary.isSearchingAppleMusic {
-                    VStack(spacing: Theme.Metrics.spacingLarge) {
-                        ProgressView()
-                            .scaleEffect(1.2)
-                        Text("Searching Apple Music...")
-                            .font(Theme.Typography.subheadline)
-                            .foregroundColor(Theme.Colors.secondaryText)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.top, Theme.Metrics.paddingSmall)
-                } else if musicLibrary.appleMusicSongs.isEmpty {
-                    EmptyStateView(
-                        icon: "magnifyingglass",
-                        title: searchText.isEmpty ? "Search Apple Music" : "No results found",
-                        message: searchText.isEmpty ? "Type to search millions of songs in the Apple Music catalog" : nil
-                    )
-                    .padding(.top, Theme.Metrics.paddingSmall)
-                } else {
-                    AppleMusicResultsList(results: musicLibrary.appleMusicSongs)
-                        .padding(.top, Theme.Metrics.paddingSmall)
+                    
+                    // Apple Music results section (only show if searching)
+                    if !searchText.isEmpty && musicLibrary.hasAppleMusicAccess {
+                        if musicLibrary.isSearchingAppleMusic {
+                            // Loading state
+                            VStack(spacing: Theme.Metrics.spacingLarge) {
+                                ProgressView()
+                                    .scaleEffect(1.2)
+                                Text("Searching Apple Music...")
+                                    .font(Theme.Typography.subheadline)
+                                    .foregroundColor(Theme.Colors.secondaryText)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, Theme.Metrics.paddingMedium)
+                        } else if !musicLibrary.appleMusicSongs.isEmpty {
+                            // Apple Music results
+                            ForEach(Array(musicLibrary.appleMusicSongs.enumerated()), id: \.element.id) { index, song in
+                                AppleMusicResultRow(song: song, index: index)
+                                    .padding(.vertical, 4)
+                            }
+                            .padding(.horizontal, Theme.Metrics.paddingMedium + Theme.Metrics.paddingSmall)
+                        } else if filteredLocalSongs.isEmpty {
+                            // No results found anywhere
+                            EmptyStateView(
+                                icon: "magnifyingglass",
+                                title: "No results found",
+                                message: "No matches for '\(searchText)' in your library or Apple Music"
+                            )
+                            .padding(.top, Theme.Metrics.paddingSmall)
+                        }
+                    }
                 }
+                .padding(.top, Theme.Metrics.paddingSmall)
             }
         }
         .padding(.top, Theme.Metrics.paddingMedium)
@@ -149,42 +154,6 @@ struct EmptyStateView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-// List of local songs with optimized rendering
-struct LocalSongsList: View {
-    let songs: [MPMediaItem]
-    
-    var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                ForEach(Array(songs.enumerated()), id: \.element.persistentID) { index, song in
-                    NavigationLink(destination: SongDetailView(song: song, rank: index + 1)) {
-                        SongRowView<MPMediaItem>.create(from: song, rank: index + 1)
-                    }
-                    .padding(.vertical, 4)
-                }
-            }
-            .padding(.horizontal, Theme.Metrics.paddingMedium + Theme.Metrics.paddingSmall)
-        }
-    }
-}
-
-// List of Apple Music results with optimized rendering
-struct AppleMusicResultsList: View {
-    @EnvironmentObject var musicLibrary: MusicLibraryModel
-    let results: [Song]
-    
-    var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                ForEach(Array(results.enumerated()), id: \.element.id) { index, song in
-                    AppleMusicResultRow(song: song, index: index)
-                }
-            }
-            .padding(.horizontal, Theme.Metrics.paddingMedium + Theme.Metrics.paddingSmall)
-        }
     }
 }
 
