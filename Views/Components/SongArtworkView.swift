@@ -7,6 +7,7 @@
 
 import SwiftUI
 import MediaPlayer
+import MusicKit
 
 struct ArtworkView: View {
     let uiImage: UIImage?
@@ -64,9 +65,22 @@ struct LibraryArtworkView: View {
     
     var body: some View {
         if let artwork = artwork {
-            ArtworkView(uiImage: artwork.image(at: CGSize(width: size, height: size)), size: size)
+            // Request artwork at 2x the display size for Retina clarity
+            ArtworkView(uiImage: artwork.image(at: CGSize(width: size * 2, height: size * 2)), size: size)
         } else {
             ArtworkView(uiImage: nil, size: size)
         }
+    }
+}
+
+// MARK: - Apple Music Artwork Extensions
+extension AsyncArtworkView {
+    /// Creates an AsyncArtworkView with high-resolution Apple Music artwork URL
+    static func appleMusic(artwork: MusicKit.Artwork?, size: CGFloat) -> AsyncArtworkView {
+        // Request artwork at screen scale for crisp display on Retina devices
+        let scale = UIScreen.main.scale
+        let pixelSize = Int(size * scale)
+        let url = artwork?.url(width: pixelSize, height: pixelSize)
+        return AsyncArtworkView(url: url, size: size)
     }
 }

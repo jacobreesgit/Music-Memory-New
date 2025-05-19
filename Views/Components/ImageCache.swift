@@ -86,3 +86,11 @@ struct CachedAsyncImage: View {
         }
     }
 }
+
+// MARK: - High Resolution Image Helper
+extension CachedAsyncImage {
+    /// Creates a CachedAsyncImage that automatically requests high-resolution artwork
+    static func highResolution(url: URL?, displaySize: CGFloat) -> CachedAsyncImage {
+        return CachedAsyncImage(url: url, size: displaySize)
+    }
+}

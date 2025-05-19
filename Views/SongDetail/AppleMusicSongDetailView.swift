@@ -20,10 +20,10 @@ struct AppleMusicSongDetailView: View {
         SongDetailBase<Song, _, _>.create(song: song, rank: rank) {
             // Header content
             VStack(spacing: Theme.Metrics.spacingMedium) {
-                // Large artwork with library indicator
+                // Large artwork with library indicator - using high resolution
                 ZStack {
-                    AsyncArtworkView(
-                        url: song.artwork?.url(width: Int(Theme.Metrics.artworkSizeLarge), height: Int(Theme.Metrics.artworkSizeLarge)),
+                    AsyncArtworkView.appleMusic(
+                        artwork: song.artwork,
                         size: Theme.Metrics.artworkSizeLarge
                     )
                     .applyShadow(Theme.Shadows.medium)

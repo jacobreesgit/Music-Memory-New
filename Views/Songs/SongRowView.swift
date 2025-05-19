@@ -111,10 +111,10 @@ struct SongRowView<T>: View {
             Text("#\(rank)")
                 .rankStyle(color: Theme.Colors.appleMusicColor)
             
-            // Artwork with optimized rendering
+            // Artwork with optimized rendering - using high resolution
             ZStack {
-                AsyncArtworkView(
-                    url: song.artwork?.url(width: Int(Theme.Metrics.artworkSizeSmall), height: Int(Theme.Metrics.artworkSizeSmall)),
+                AsyncArtworkView.appleMusic(
+                    artwork: song.artwork,
                     size: Theme.Metrics.artworkSizeSmall
                 )
                 
