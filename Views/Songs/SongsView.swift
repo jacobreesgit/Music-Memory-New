@@ -31,7 +31,7 @@ struct SongsView: View {
                 
                 TextField(networkMonitor.isConnected ? "Search library and Apple Music" : "Search library", text: $searchText)
                     .font(Theme.Typography.body)
-                    .autocorrectionDisabled(true)
+                    .autocorrectionDisabled(false)
                     .autocapitalization(.none)
                     .onSubmit {
                         // Only show results when user presses return/search
