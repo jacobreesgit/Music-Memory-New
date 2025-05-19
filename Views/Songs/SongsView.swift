@@ -28,7 +28,7 @@ struct SongsView: View {
                 Image(systemName: "magnifyingglass")
                     .iconStyle()
                 
-                TextField("Search songs", text: $searchText)
+                TextField("Search library and Apple Music", text: $searchText)
                     .font(Theme.Typography.body)
                     .autocorrectionDisabled(true)
                     .autocapitalization(.none)

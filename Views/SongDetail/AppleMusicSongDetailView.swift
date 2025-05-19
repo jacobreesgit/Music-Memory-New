@@ -55,30 +55,6 @@ struct AppleMusicSongDetailView: View {
                         .padding(Theme.Metrics.paddingSmall)
                     }
                 }
-                
-                // Song title, artist and info
-                SongInfoHeader(
-                    title: song.title,
-                    artist: song.artistName
-                ) {
-                    HStack(spacing: Theme.Metrics.spacingLarge) {
-                        VStack {
-                            Text("#\(rank)")
-                                .font(Theme.Typography.title)
-                                .fontWeight(.bold)
-                                .foregroundColor(Theme.Colors.appleMusicColor)
-                            Text("Search Result")
-                                .font(Theme.Typography.caption)
-                                .foregroundColor(Theme.Colors.secondaryText)
-                        }
-                        
-                        LibraryStatusView(
-                            isInLibrary: isInLibrary,
-                            playCount: localSongMatch?.playCount
-                        )
-                    }
-                    .padding(.top, Theme.Metrics.paddingSmall)
-                }
             }
         } detailsContent: {
             // Details content
