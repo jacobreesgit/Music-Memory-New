@@ -19,15 +19,15 @@ struct SongInfoHeader: View {
     }
     
     var body: some View {
-        VStack(spacing: AppMetrics.spacingSmall) {
+        VStack(spacing: Theme.Metrics.spacingSmall) {
             Text(title)
-                .font(AppFonts.title2)
-                .foregroundColor(AppColors.primaryText)
+                .font(Theme.Typography.title2)
+                .foregroundColor(Theme.Colors.primaryText)
                 .multilineTextAlignment(.center)
             
             Text(artist)
-                .font(AppFonts.title3)
-                .foregroundColor(AppColors.secondaryText)
+                .font(Theme.Typography.title3)
+                .foregroundColor(Theme.Colors.secondaryText)
                 .multilineTextAlignment(.center)
                 
             additionalInfo
@@ -41,30 +41,30 @@ struct RankPlayCountView: View {
     let color: Color
     
     var body: some View {
-        HStack(spacing: AppMetrics.spacingLarge) {
+        HStack(spacing: Theme.Metrics.spacingLarge) {
             VStack {
                 Text("#\(rank)")
-                    .font(AppFonts.title)
+                    .font(Theme.Typography.title)
                     .fontWeight(.bold)
                     .foregroundColor(color)
                 Text("Rank")
-                    .font(AppFonts.caption)
-                    .foregroundColor(AppColors.secondaryText)
+                    .font(Theme.Typography.caption)
+                    .foregroundColor(Theme.Colors.secondaryText)
             }
             
             if let plays = playCount {
                 VStack {
                     Text("\(plays)")
-                        .font(AppFonts.title)
+                        .font(Theme.Typography.title)
                         .fontWeight(.bold)
                         .foregroundColor(color)
                     Text("Plays")
-                        .font(AppFonts.caption)
-                        .foregroundColor(AppColors.secondaryText)
+                        .font(Theme.Typography.caption)
+                        .foregroundColor(Theme.Colors.secondaryText)
                 }
             }
         }
-        .padding(.top, AppMetrics.paddingSmall)
+        .padding(.top, Theme.Metrics.paddingSmall)
     }
 }
 
@@ -74,21 +74,21 @@ struct LibraryStatusView: View {
     
     var body: some View {
         VStack {
-            HStack(spacing: AppMetrics.spacingXSmall) {
+            HStack(spacing: Theme.Metrics.spacingXSmall) {
                 Image(systemName: isInLibrary ? "checkmark.circle.fill" : "circle")
-                    .font(AppFonts.title2)
-                    .foregroundColor(isInLibrary ? AppColors.inLibrary : AppColors.secondaryText)
+                    .font(Theme.Typography.title2)
+                    .foregroundColor(isInLibrary ? Theme.Colors.inLibrary : Theme.Colors.secondaryText)
                 
                 Text(isInLibrary ? "In Library" : "Not in Library")
-                    .font(AppFonts.title3)
+                    .font(Theme.Typography.title3)
                     .fontWeight(.medium)
-                    .foregroundColor(isInLibrary ? AppColors.inLibrary : AppColors.secondaryText)
+                    .foregroundColor(isInLibrary ? Theme.Colors.inLibrary : Theme.Colors.secondaryText)
             }
             
             if isInLibrary, let playCount = playCount {
                 Text("\(playCount) plays")
-                    .font(AppFonts.caption)
-                    .foregroundColor(AppColors.inLibrary)
+                    .font(Theme.Typography.caption)
+                    .foregroundColor(Theme.Colors.inLibrary)
             }
         }
     }

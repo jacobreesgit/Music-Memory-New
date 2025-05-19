@@ -12,7 +12,7 @@ struct ArtworkView: View {
     let uiImage: UIImage?
     let size: CGFloat
     
-    init(uiImage: UIImage?, size: CGFloat = AppMetrics.artworkSizeMedium) {
+    init(uiImage: UIImage?, size: CGFloat = Theme.Metrics.artworkSizeMedium) {
         self.uiImage = uiImage
         self.size = size
     }
@@ -23,18 +23,18 @@ struct ArtworkView: View {
                 .resizable()
                 .aspectRatio(contentMode: .fill)
                 .frame(width: size, height: size)
-                .cornerRadius(AppMetrics.cornerRadiusSmall)
-                .applyShadow(AppShadows.small)
+                .cornerRadius(Theme.Metrics.cornerRadiusSmall)
+                .applyShadow(Theme.Shadows.small)
         } else {
             ZStack {
-                RoundedRectangle(cornerRadius: AppMetrics.cornerRadiusSmall)
-                    .fill(AppColors.secondaryBackground)
+                RoundedRectangle(cornerRadius: Theme.Metrics.cornerRadiusSmall)
+                    .fill(Theme.Colors.secondaryBackground)
                     .frame(width: size, height: size)
                 
                 Image(systemName: "music.note")
                     .iconStyle(size: size * 0.4)
             }
-            .applyShadow(AppShadows.small)
+            .applyShadow(Theme.Shadows.small)
         }
     }
 }
@@ -43,7 +43,7 @@ struct AsyncArtworkView: View {
     let url: URL?
     let size: CGFloat
     
-    init(url: URL?, size: CGFloat = AppMetrics.artworkSizeMedium) {
+    init(url: URL?, size: CGFloat = Theme.Metrics.artworkSizeMedium) {
         self.url = url
         self.size = size
     }
@@ -57,7 +57,7 @@ struct LibraryArtworkView: View {
     let artwork: MPMediaItemArtwork?
     let size: CGFloat
     
-    init(artwork: MPMediaItemArtwork?, size: CGFloat = AppMetrics.artworkSizeMedium) {
+    init(artwork: MPMediaItemArtwork?, size: CGFloat = Theme.Metrics.artworkSizeMedium) {
         self.artwork = artwork
         self.size = size
     }

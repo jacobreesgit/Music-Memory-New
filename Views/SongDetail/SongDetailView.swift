@@ -17,12 +17,12 @@ struct SongDetailView: View {
     @State private var isSearchingAppleMusic: Bool = false
     
     var body: some View {
-        SongDetailBase(title: song.title ?? "Song") {
+        SongDetailBase<MPMediaItem, _, _>.create(song: song, rank: rank) {
             // Header content
-            VStack(spacing: AppMetrics.spacingMedium) {
+            VStack(spacing: Theme.Metrics.spacingMedium) {
                 // Large artwork
-                LibraryArtworkView(artwork: song.artwork, size: AppMetrics.artworkSizeLarge)
-                    .applyShadow(AppShadows.medium)
+                LibraryArtworkView(artwork: song.artwork, size: Theme.Metrics.artworkSizeLarge)
+                    .applyShadow(Theme.Shadows.medium)
                 
                 // Song title, artist and metrics
                 SongInfoHeader(
@@ -32,7 +32,7 @@ struct SongDetailView: View {
                     RankPlayCountView(
                         rank: rank,
                         playCount: song.playCount,
-                        color: AppColors.primary
+                        color: Theme.Colors.primary
                     )
                 }
             }
@@ -122,8 +122,8 @@ struct SongDetailView: View {
                 
                 // Look for a match in the results
                 if let match = response.songs.first(where: {
-                    musicLibrary.normalizeString($0.title) == musicLibrary.normalizeString(title) &&
-                    musicLibrary.normalizeString($0.artistName) == musicLibrary.normalizeString(artist)
+                    musicLibrary.createSongKey(title: $0.title, artist: $0.artistName, album: $0.albumTitle ?? "") ==
+                    musicLibrary.createSongKey(title: title, artist: artist, album: song.albumTitle ?? "")
                 }) {
                     await MainActor.run {
                         self.appleMusicSong = match

@@ -35,7 +35,7 @@ struct SongsView: View {
                     .iconStyle()
                 
                 TextField("Search songs", text: $searchText)
-                    .font(AppFonts.body)
+                    .font(Theme.Typography.body)
                     .onChange(of: searchText) { oldValue, newValue in
                         // Debounce Apple Music search
                         searchDebounceTimer?.invalidate()
@@ -70,76 +70,44 @@ struct SongsView: View {
                 }
                 .pickerStyle(SegmentedPickerStyle())
                 .padding(.horizontal)
-                .padding(.top, AppMetrics.paddingSmall)
+                .padding(.top, Theme.Metrics.paddingSmall)
             }
             
             // Content based on selected tab
             if selectedTab == 0 {
                 // Local library songs
                 if filteredLocalSongs.isEmpty {
-                    VStack(spacing: AppMetrics.spacingLarge) {
-                        Image(systemName: "music.note")
-                            .iconStyle(size: AppMetrics.iconSizeXLarge)
-                        
-                        Text(searchText.isEmpty ? "No songs found" : "No songs match '\(searchText)'")
-                            .font(AppFonts.bodyBold)
-                            .foregroundColor(AppColors.secondaryText)
-                        
-                        if searchText.isEmpty {
-                            Text("Your music library appears to be empty or the app doesn't have permission to access it.")
-                                .font(AppFonts.subheadline)
-                                .foregroundColor(AppColors.secondaryText)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    EmptyStateView(
+                        icon: "music.note",
+                        title: searchText.isEmpty ? "No songs found" : "No songs match '\(searchText)'",
+                        message: searchText.isEmpty ? "Your music library appears to be empty or the app doesn't have permission to access it." : nil
+                    )
                 } else {
-                    List {
-                        ForEach(Array(filteredLocalSongs.enumerated()), id: \.element.persistentID) { index, song in
-                            NavigationLink(destination: SongDetailView(song: song, rank: index + 1)) {
-                                SongRow(song: song, rank: index + 1)
-                            }
-                        }
-                    }
-                    .listStyle(PlainListStyle())
+                    LocalSongsList(songs: filteredLocalSongs)
                 }
             } else {
                 // Apple Music search results
                 if musicLibrary.isSearchingAppleMusic {
-                    VStack(spacing: AppMetrics.spacingLarge) {
+                    VStack(spacing: Theme.Metrics.spacingLarge) {
                         ProgressView()
                             .scaleEffect(1.2)
                         Text("Searching Apple Music...")
-                            .font(AppFonts.subheadline)
-                            .foregroundColor(AppColors.secondaryText)
+                            .font(Theme.Typography.subheadline)
+                            .foregroundColor(Theme.Colors.secondaryText)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if musicLibrary.appleMusicSongs.isEmpty {
-                    VStack(spacing: AppMetrics.spacingLarge) {
-                        Image(systemName: "magnifyingglass")
-                            .iconStyle(size: AppMetrics.iconSizeXLarge)
-                        
-                        Text(searchText.isEmpty ? "Search Apple Music" : "No results found")
-                            .font(AppFonts.bodyBold)
-                            .foregroundColor(AppColors.secondaryText)
-                        
-                        if searchText.isEmpty {
-                            Text("Type to search millions of songs in the Apple Music catalog")
-                                .font(AppFonts.subheadline)
-                                .foregroundColor(AppColors.secondaryText)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    EmptyStateView(
+                        icon: "magnifyingglass",
+                        title: searchText.isEmpty ? "Search Apple Music" : "No results found",
+                        message: searchText.isEmpty ? "Type to search millions of songs in the Apple Music catalog" : nil
+                    )
                 } else {
                     AppleMusicResultsList(results: musicLibrary.appleMusicSongs)
-                        .environmentObject(musicLibrary)
                 }
             }
         }
-        .padding(.top, AppMetrics.paddingMedium) // Add padding above entire content
+        .padding(.top, Theme.Metrics.paddingMedium)
         .navigationTitle("Songs")
         .onAppear {
             // Refresh library when view appears
@@ -150,19 +118,59 @@ struct SongsView: View {
     }
 }
 
-// Separate component for Apple Music results list to improve performance
+// Empty state view for no results
+struct EmptyStateView: View {
+    let icon: String
+    let title: String
+    let message: String?
+    
+    var body: some View {
+        VStack(spacing: Theme.Metrics.spacingLarge) {
+            Image(systemName: icon)
+                .iconStyle(size: Theme.Metrics.iconSizeXLarge)
+            
+            Text(title)
+                .font(Theme.Typography.bodyBold)
+                .foregroundColor(Theme.Colors.secondaryText)
+            
+            if let message = message {
+                Text(message)
+                    .font(Theme.Typography.subheadline)
+                    .foregroundColor(Theme.Colors.secondaryText)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// List of local songs with optimized rendering
+struct LocalSongsList: View {
+    let songs: [MPMediaItem]
+    
+    var body: some View {
+        List {
+            ForEach(Array(songs.enumerated()), id: \.element.persistentID) { index, song in
+                NavigationLink(destination: SongDetailView(song: song, rank: index + 1)) {
+                    SongRowView.create(from: song, rank: index + 1)
+                }
+            }
+        }
+        .listStyle(PlainListStyle())
+    }
+}
+
+// List of Apple Music results with optimized rendering
 struct AppleMusicResultsList: View {
     @EnvironmentObject var musicLibrary: MusicLibraryModel
     let results: [Song]
     
     var body: some View {
-        // Optimize rendering by using LazyVStack inside ScrollView
-        // This avoids the recomputation of all cells when list state changes
         ScrollView {
             LazyVStack(spacing: 0) {
                 ForEach(Array(results.enumerated()), id: \.element.id) { index, song in
                     AppleMusicResultRow(song: song, index: index)
-                        .environmentObject(musicLibrary)
                 }
             }
             .padding(.horizontal)
@@ -170,7 +178,7 @@ struct AppleMusicResultsList: View {
     }
 }
 
-// Optimized row component for Apple Music results
+// Row component for Apple Music results
 struct AppleMusicResultRow: View {
     @EnvironmentObject var musicLibrary: MusicLibraryModel
     let song: Song
@@ -182,12 +190,12 @@ struct AppleMusicResultRow: View {
             if isInLibrary, let localSong = musicLibrary.getLocalSongMatch(for: song) {
                 // If the song is in the local library, navigate to SongDetailView
                 NavigationLink(destination: SongDetailView(song: localSong, rank: index + 1)) {
-                    AppleMusicSongRow(song: song, rank: index + 1, musicLibrary: musicLibrary)
+                    SongRowView.create(from: song, rank: index + 1, musicLibrary: musicLibrary)
                 }
             } else {
                 // If not in library, navigate to AppleMusicSongDetailView
                 NavigationLink(destination: AppleMusicSongDetailView(song: song, rank: index + 1)) {
-                    AppleMusicSongRow(song: song, rank: index + 1, musicLibrary: musicLibrary)
+                    SongRowView.create(from: song, rank: index + 1, musicLibrary: musicLibrary)
                 }
             }
         }

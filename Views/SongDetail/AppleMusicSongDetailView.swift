@@ -17,42 +17,42 @@ struct AppleMusicSongDetailView: View {
     @State private var localSongMatch: MPMediaItem?
     
     var body: some View {
-        SongDetailBase(title: song.title) {
+        SongDetailBase<Song, _, _>.create(song: song, rank: rank) {
             // Header content
-            VStack(spacing: AppMetrics.spacingMedium) {
+            VStack(spacing: Theme.Metrics.spacingMedium) {
                 // Large artwork with library indicator
                 ZStack {
                     AsyncArtworkView(
-                        url: song.artwork?.url(width: Int(AppMetrics.artworkSizeLarge), height: Int(AppMetrics.artworkSizeLarge)),
-                        size: AppMetrics.artworkSizeLarge
+                        url: song.artwork?.url(width: Int(Theme.Metrics.artworkSizeLarge), height: Int(Theme.Metrics.artworkSizeLarge)),
+                        size: Theme.Metrics.artworkSizeLarge
                     )
-                    .applyShadow(AppShadows.medium)
+                    .applyShadow(Theme.Shadows.medium)
                     
                     // "In Library" indicator overlay
                     if isInLibrary {
                         VStack {
                             HStack {
                                 Spacer()
-                                VStack(spacing: AppMetrics.spacingXSmall) {
+                                VStack(spacing: Theme.Metrics.spacingXSmall) {
                                     Image(systemName: "checkmark.circle.fill")
-                                        .font(AppFonts.title2)
+                                        .font(Theme.Typography.title2)
                                         .foregroundColor(.white)
-                                        .background(AppColors.inLibrary)
+                                        .background(Theme.Colors.inLibrary)
                                         .clipShape(Circle())
                                     
                                     Text("IN LIBRARY")
-                                        .font(AppFonts.caption2)
+                                        .font(Theme.Typography.caption2)
                                         .fontWeight(.bold)
-                                        .padding(.horizontal, AppMetrics.paddingSmall)
-                                        .padding(.vertical, AppMetrics.spacingXSmall)
-                                        .background(AppColors.inLibrary)
+                                        .padding(.horizontal, Theme.Metrics.paddingSmall)
+                                        .padding(.vertical, Theme.Metrics.spacingXSmall)
+                                        .background(Theme.Colors.inLibrary)
                                         .foregroundColor(.white)
-                                        .cornerRadius(AppMetrics.cornerRadiusSmall)
+                                        .cornerRadius(Theme.Metrics.cornerRadiusSmall)
                                 }
                             }
                             Spacer()
                         }
-                        .padding(AppMetrics.paddingSmall)
+                        .padding(Theme.Metrics.paddingSmall)
                     }
                 }
                 
@@ -61,15 +61,15 @@ struct AppleMusicSongDetailView: View {
                     title: song.title,
                     artist: song.artistName
                 ) {
-                    HStack(spacing: AppMetrics.spacingLarge) {
+                    HStack(spacing: Theme.Metrics.spacingLarge) {
                         VStack {
                             Text("#\(rank)")
-                                .font(AppFonts.title)
+                                .font(Theme.Typography.title)
                                 .fontWeight(.bold)
-                                .foregroundColor(AppColors.appleMusicColor)
+                                .foregroundColor(Theme.Colors.appleMusicColor)
                             Text("Search Result")
-                                .font(AppFonts.caption)
-                                .foregroundColor(AppColors.secondaryText)
+                                .font(Theme.Typography.caption)
+                                .foregroundColor(Theme.Colors.secondaryText)
                         }
                         
                         LibraryStatusView(
@@ -77,7 +77,7 @@ struct AppleMusicSongDetailView: View {
                             playCount: localSongMatch?.playCount
                         )
                     }
-                    .padding(.top, AppMetrics.paddingSmall)
+                    .padding(.top, Theme.Metrics.paddingSmall)
                 }
             }
         } detailsContent: {

@@ -32,15 +32,15 @@ struct MusicMemoryApp: App {
         // Apply global appearance settings
         let appearance = UINavigationBarAppearance()
         appearance.configureWithOpaqueBackground()
-        appearance.backgroundColor = UIColor(AppColors.background)
-        appearance.titleTextAttributes = [.foregroundColor: UIColor(AppColors.primaryText)]
-        appearance.largeTitleTextAttributes = [.foregroundColor: UIColor(AppColors.primaryText)]
+        appearance.backgroundColor = UIColor(Theme.Colors.background)
+        appearance.titleTextAttributes = [.foregroundColor: UIColor(Theme.Colors.primaryText)]
+        appearance.largeTitleTextAttributes = [.foregroundColor: UIColor(Theme.Colors.primaryText)]
         
         UINavigationBar.appearance().standardAppearance = appearance
         UINavigationBar.appearance().compactAppearance = appearance
         UINavigationBar.appearance().scrollEdgeAppearance = appearance
         
         // Set tab bar appearance
-        UITabBar.appearance().backgroundColor = UIColor(AppColors.background)
+        UITabBar.appearance().backgroundColor = UIColor(Theme.Colors.background)
     }
 }

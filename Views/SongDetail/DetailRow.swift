@@ -1,3 +1,10 @@
+//
+//  DetailRow.swift
+//  Music Memory New
+//
+//  Created by Jacob Rees on 19/05/2025.
+//
+
 import SwiftUI
 
 struct DetailRow: View {
@@ -9,17 +16,17 @@ struct DetailRow: View {
         VStack(spacing: 0) {
             HStack {
                 Text(title)
-                    .font(AppFonts.body)
-                    .foregroundColor(AppColors.secondaryText)
+                    .font(Theme.Typography.body)
+                    .foregroundColor(Theme.Colors.secondaryText)
                 
                 Spacer()
                 
                 Text(value)
-                    .font(AppFonts.body)
-                    .foregroundColor(AppColors.primaryText)
+                    .font(Theme.Typography.body)
+                    .foregroundColor(Theme.Colors.primaryText)
                     .multilineTextAlignment(.trailing)
             }
-            .padding(.vertical, AppMetrics.paddingSmall)
+            .padding(.vertical, Theme.Metrics.paddingSmall)
             
             if !isLast {
                 Divider()
