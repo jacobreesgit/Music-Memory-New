@@ -11,6 +11,7 @@ import MusicKit
 
 struct SongsView: View {
     @EnvironmentObject var musicLibrary: MusicLibraryModel
+    @EnvironmentObject var networkMonitor: NetworkMonitor
     @State private var searchText = ""
     @State private var isActiveSearch = false
     @State private var isSearching = false
@@ -28,7 +29,7 @@ struct SongsView: View {
                 Image(systemName: "magnifyingglass")
                     .iconStyle()
                 
-                TextField("Search library and Apple Music", text: $searchText)
+                TextField(networkMonitor.isConnected ? "Search library and Apple Music" : "Search library", text: $searchText)
                     .font(Theme.Typography.body)
                     .autocorrectionDisabled(true)
                     .autocapitalization(.none)
@@ -151,8 +152,8 @@ struct SongsView: View {
             return
         }
         
-        // Process Apple Music search in background
-        if musicLibrary.hasAppleMusicAccess {
+        // Process Apple Music search in background only if network is available
+        if musicLibrary.hasAppleMusicAccess && networkMonitor.isConnected {
             Task {
                 await musicLibrary.searchAppleMusic(query: trimmedQuery)
             }
@@ -176,8 +177,8 @@ struct SongsView: View {
             // Get local library matches
             let localMatches = musicLibrary.cachedFilteredSongs(for: trimmedQuery)
             
-            // If Apple Music is enabled, wait for those results too
-            if musicLibrary.hasAppleMusicAccess {
+            // If Apple Music is enabled and network is available, wait for those results too
+            if musicLibrary.hasAppleMusicAccess && networkMonitor.isConnected {
                 // Wait for Apple Music search to complete if it's in progress
                 while musicLibrary.isSearchingAppleMusic {
                     try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
@@ -193,7 +194,7 @@ struct SongsView: View {
             }
             
             // Then add Apple Music songs that aren't duplicates of library songs
-            if musicLibrary.hasAppleMusicAccess {
+            if musicLibrary.hasAppleMusicAccess && networkMonitor.isConnected {
                 for song in musicLibrary.appleMusicSongs {
                     // Only add if not already in library (to avoid duplicates)
                     let isDuplicate = localMatches.contains { localSong in

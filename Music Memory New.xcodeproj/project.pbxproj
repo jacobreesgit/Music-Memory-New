@@ -23,6 +23,7 @@
 		075185782DDB67EE003EE30E /* AppleMusicService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 075185772DDB67EE003EE30E /* AppleMusicService.swift */; };
 		0751857A2DDB67F8003EE30E /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 075185792DDB67F8003EE30E /* Theme.swift */; };
 		0751857C2DDB6807003EE30E /* SongRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0751857B2DDB6807003EE30E /* SongRowView.swift */; };
+		075185832DDBADED003EE30E /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 075185822DDBADED003EE30E /* NetworkMonitor.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -45,6 +46,7 @@
 		075185772DDB67EE003EE30E /* AppleMusicService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicService.swift; sourceTree = "<group>"; };
 		075185792DDB67F8003EE30E /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		0751857B2DDB6807003EE30E /* SongRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongRowView.swift; sourceTree = "<group>"; };
+		075185822DDBADED003EE30E /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
 		077595712DDA5D1E008EAD9A /* Music Memory New.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Music Memory New.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -132,6 +134,7 @@
 		075185722DDB65BA003EE30E /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
+				075185812DDBADE6003EE30E /* Networking */,
 				075185742DDB65D6003EE30E /* Extensions */,
 				075185732DDB65C0003EE30E /* Theme */,
 			);
@@ -152,6 +155,14 @@
 				075185422DDB64A2003EE30E /* AppHelpers.swift */,
 			);
 			path = Extensions;
+			sourceTree = "<group>";
+		};
+		075185812DDBADE6003EE30E /* Networking */ = {
+			isa = PBXGroup;
+			children = (
+				075185822DDBADED003EE30E /* NetworkMonitor.swift */,
+			);
+			path = Networking;
 			sourceTree = "<group>";
 		};
 		077595682DDA5D1E008EAD9A = {
@@ -256,6 +267,7 @@
 				0751855E2DDB64A2003EE30E /* AppHelpers.swift in Sources */,
 				0751855F2DDB64A2003EE30E /* SongArtworkView.swift in Sources */,
 				075185602DDB64A2003EE30E /* SongsView.swift in Sources */,
+				075185832DDBADED003EE30E /* NetworkMonitor.swift in Sources */,
 				0751857C2DDB6807003EE30E /* SongRowView.swift in Sources */,
 				075185612DDB64A2003EE30E /* SongDetailView.swift in Sources */,
 				075185622DDB64A2003EE30E /* DetailRow.swift in Sources */,

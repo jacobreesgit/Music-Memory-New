@@ -11,6 +11,7 @@ import MediaPlayer
 @main
 struct MusicMemoryApp: App {
     @StateObject private var musicLibrary = MusicLibraryModel()
+    @StateObject private var networkMonitor = NetworkMonitor()
     
     init() {
         // Configure UI appearance
@@ -21,6 +22,7 @@ struct MusicMemoryApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(musicLibrary)
+                .environmentObject(networkMonitor)
                 .onAppear {
                     // Request permission and load data when app opens
                     // Only request if not already loading
