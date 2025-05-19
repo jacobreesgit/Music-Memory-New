@@ -110,7 +110,7 @@ class MusicLibraryModel: ObservableObject {
         }
     }
     
-    /// Search Apple Music catalog with improved caching
+    /// Search Apple Music catalog
     func searchAppleMusic(query: String) async {
         guard hasAppleMusicAccess && !query.isEmpty else { return }
         
@@ -120,33 +120,8 @@ class MusicLibraryModel: ObservableObject {
         
         let searchResults = await appleMusicService.searchMusic(query: query)
         
-        // Create a dictionary to store unique songs by a composite key
-        var uniqueSongs: [String: Song] = [:]
-        
-        // Deduplicate songs based on title, artist, and album
-        for song in searchResults {
-            let key = self.createSongKey(title: song.title, artist: song.artistName, album: song.albumTitle ?? "")
-            
-            // If we already have this song and it's in library, prefer the one in library
-            if let existingSong = uniqueSongs[key] {
-                let existingInLibrary = isAppleMusicSongInLibrary(existingSong)
-                let newInLibrary = isAppleMusicSongInLibrary(song)
-                
-                // Only replace if new song is in library and existing is not
-                if newInLibrary && !existingInLibrary {
-                    uniqueSongs[key] = song
-                }
-            } else {
-                // First time seeing this song
-                uniqueSongs[key] = song
-            }
-        }
-        
-        // Convert back to array
-        let uniqueResults = Array(uniqueSongs.values)
-        
         // Sort the results - prioritize songs in the library
-        let sortedResults = uniqueResults.sorted { song1, song2 in
+        let sortedResults = searchResults.sorted { song1, song2 in
             let song1InLibrary = isAppleMusicSongInLibrary(song1)
             let song2InLibrary = isAppleMusicSongInLibrary(song2)
             
