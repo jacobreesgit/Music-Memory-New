@@ -9,7 +9,8 @@ import SwiftUI
 import MediaPlayer
 import MusicKit
 
-/// Unified song row view supporting both local and Apple Music songs
+/// Simplified and optimized song row view - expensive operations moved to search phase
+/// For search results, use OptimizedLocalSongRow and OptimizedAppleMusicSongRow instead
 struct SongRowView<T>: View {
     enum SourceType {
         case localLibrary
@@ -20,8 +21,7 @@ struct SongRowView<T>: View {
     let rank: Int
     let sourceType: SourceType
     
-    // Simplified constructor for Apple Music songs (no longer needs library status)
-    private var playCount: Int? = nil
+    // No longer do expensive operations in initializer
     
     // Initializer for local library songs
     init(song: MPMediaItem, rank: Int) {
@@ -30,16 +30,11 @@ struct SongRowView<T>: View {
         self.sourceType = .localLibrary
     }
     
-    // Simplified initializer for Apple Music songs - no longer tracks library status
+    // Simplified initializer for Apple Music songs
     init(song: Song, rank: Int, musicLibrary: MusicLibraryModel) {
         self.item = song as! T
         self.rank = rank
         self.sourceType = .appleMusic
-        
-        // Only get play count if it's a local song we're showing via Apple Music
-        if let localSong = musicLibrary.getLocalSongMatch(for: song) {
-            self.playCount = localSong.playCount
-        }
     }
     
     var body: some View {
@@ -87,7 +82,7 @@ struct SongRowView<T>: View {
                     .lineLimit(1)
             }
             
-            // Play count instead of ellipsis
+            // Play count - simple display, no expensive lookups
             VStack(alignment: .trailing, spacing: 2) {
                 Text("\(song.playCount)")
                     .font(Theme.Typography.subheadlineBold)
@@ -132,8 +127,6 @@ struct SongRowView<T>: View {
                             .explicitBadgeStyle()
                     }
                     
-                    // Remove the library indicator completely
-                    
                     Spacer()
                 }
                 
@@ -143,23 +136,10 @@ struct SongRowView<T>: View {
                     .lineLimit(1)
             }
             
-            // Play count for Apple Music songs (if in library)
-            if let playCount = playCount {
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("\(playCount)")
-                        .font(Theme.Typography.subheadlineBold)
-                        .foregroundColor(Theme.Colors.appleMusicColor)
-                    
-                    Text("plays")
-                        .font(Theme.Typography.caption2)
-                        .foregroundColor(Theme.Colors.secondaryText)
-                }
-            } else {
-                // Show Apple Music indicator if not in library
-                Image(systemName: "applelogo")
-                    .font(.system(size: 14))
-                    .foregroundColor(Theme.Colors.appleMusicColor)
-            }
+            // Simple Apple Music indicator - no expensive library lookups during scrolling
+            Image(systemName: "applelogo")
+                .font(.system(size: 14))
+                .foregroundColor(Theme.Colors.appleMusicColor)
         }
         .padding(.vertical, Theme.Metrics.songRowVerticalPadding)
         .contentShape(Rectangle())
@@ -173,7 +153,6 @@ extension SongRowView {
     }
     
     static func create(from song: Song, rank: Int, musicLibrary: MusicLibraryModel) -> SongRowView<Song> {
-        // Simplified constructor - no longer tracks library status
         return SongRowView<Song>(song: song, rank: rank, musicLibrary: musicLibrary)
     }
 }

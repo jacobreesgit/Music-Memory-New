@@ -9,6 +9,43 @@ import SwiftUI
 import MediaPlayer
 import MusicKit
 
+// Enhanced SearchResult with all expensive values pre-computed
+struct SearchResult: Identifiable {
+    enum ResultType {
+        case localSong(MPMediaItem)
+        case appleMusicSong(Song, PrecomputedData)
+    }
+    
+    // Pre-computed data for Apple Music songs to avoid expensive operations during scrolling
+    struct PrecomputedData {
+        let isInLibrary: Bool
+        let playCount: Int?
+        let localSong: MPMediaItem?
+    }
+    
+    let id = UUID()
+    let type: ResultType
+    
+    // Convenience getters for UI
+    var playCount: Int? {
+        switch type {
+        case .localSong(let song):
+            return song.playCount
+        case .appleMusicSong(_, let data):
+            return data.playCount
+        }
+    }
+    
+    var isInLibrary: Bool {
+        switch type {
+        case .localSong:
+            return true
+        case .appleMusicSong(_, let data):
+            return data.isInLibrary
+        }
+    }
+}
+
 struct SongsView: View {
     @EnvironmentObject var musicLibrary: MusicLibraryModel
     @EnvironmentObject var networkMonitor: NetworkMonitor
@@ -59,13 +96,17 @@ struct SongsView: View {
             // Content area
             ScrollView {
                 if isSearching {
-                    // Single loading indicator when actively searching
+                    // Extended loading indicator while doing expensive computations
                     VStack(spacing: Theme.Metrics.spacingLarge) {
                         ProgressView()
                             .scaleEffect(1.2)
-                        Text("Searching...")
+                        Text("Searching and processing results...")
                             .font(Theme.Typography.subheadline)
                             .foregroundColor(Theme.Colors.secondaryText)
+                        Text("This may take a moment for better scrolling performance")
+                            .font(Theme.Typography.caption)
+                            .foregroundColor(Theme.Colors.secondaryText)
+                            .multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, Theme.Metrics.paddingLarge)
@@ -80,20 +121,23 @@ struct SongsView: View {
                         )
                         .padding(.top, Theme.Metrics.paddingLarge)
                     } else {
-                        // Combined results list
+                        // Combined results list - now optimized for smooth scrolling
                         LazyVStack(spacing: 0) {
                             ForEach(Array(combinedResults.enumerated()), id: \.element.id) { index, result in
                                 Group {
                                     switch result.type {
                                     case .localSong(let song):
                                         NavigationLink(destination: SongDetailView(song: song, rank: index + 1)) {
-                                            SongRowView<MPMediaItem>.create(from: song, rank: index + 1)
+                                            OptimizedLocalSongRow(song: song, rank: index + 1)
                                         }
                                         
-                                    case .appleMusicSong(let song):
-                                        // Always show the Apple Music version
+                                    case .appleMusicSong(let song, let precomputedData):
                                         NavigationLink(destination: AppleMusicSongDetailView(song: song, rank: index + 1)) {
-                                            SongRowView<Song>.create(from: song, rank: index + 1, musicLibrary: musicLibrary)
+                                            OptimizedAppleMusicSongRow(
+                                                song: song,
+                                                rank: index + 1,
+                                                precomputedData: precomputedData
+                                            )
                                         }
                                     }
                                 }
@@ -118,7 +162,7 @@ struct SongsView: View {
                         LazyVStack(spacing: 0) {
                             ForEach(Array(defaultLibrarySongs.enumerated()), id: \.element.persistentID) { index, song in
                                 NavigationLink(destination: SongDetailView(song: song, rank: index + 1)) {
-                                    SongRowView<MPMediaItem>.create(from: song, rank: index + 1)
+                                    OptimizedLocalSongRow(song: song, rank: index + 1)
                                 }
                                 .padding(.vertical, 4)
                             }
@@ -160,7 +204,7 @@ struct SongsView: View {
         }
     }
     
-    // When user presses return/search, show the results
+    // When user presses return/search, show the results with all expensive operations pre-computed
     private func submitSearch() {
         let trimmedQuery = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmedQuery.isEmpty {
@@ -169,70 +213,219 @@ struct SongsView: View {
             return
         }
         
-        // Show loading state
+        // Show loading state for longer while doing expensive computations
         isSearching = true
         isActiveSearch = true
         
         Task {
-            // Get local library matches
-            let localMatches = musicLibrary.cachedFilteredSongs(for: trimmedQuery)
-            
-            // If Apple Music is enabled and network is available, wait for those results too
-            if musicLibrary.hasAppleMusicAccess && networkMonitor.isConnected {
-                // Wait for Apple Music search to complete if it's in progress
-                while musicLibrary.isSearchingAppleMusic {
-                    try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+            // All expensive operations moved to background thread
+            await withTaskGroup(of: Void.self) { group in
+                var localMatches: [MPMediaItem] = []
+                var appleMusicSongs: [Song] = []
+                
+                // Get local library matches on background thread
+                group.addTask {
+                    localMatches = await Task.detached(priority: .userInitiated) {
+                        return musicLibrary.cachedFilteredSongs(for: trimmedQuery)
+                    }.value
                 }
-            }
-            
-            // Combine results - library songs always first
-            var combined: [SearchResult] = []
-            
-            // Add local matches first
-            for song in localMatches {
-                combined.append(SearchResult(type: .localSong(song)))
-            }
-            
-            // Then add Apple Music songs that aren't duplicates of library songs
-            if musicLibrary.hasAppleMusicAccess && networkMonitor.isConnected {
-                for song in musicLibrary.appleMusicSongs {
-                    // Only add if not already in library (to avoid duplicates)
-                    let isDuplicate = localMatches.contains { localSong in
-                        return musicLibrary.createSongKey(
-                            title: localSong.title ?? "",
-                            artist: localSong.artist ?? "",
-                            album: localSong.albumTitle ?? ""
-                        ) == musicLibrary.createSongKey(
-                            title: song.title,
-                            artist: song.artistName,
-                            album: song.albumTitle ?? ""
-                        )
-                    }
-                    
-                    if !isDuplicate {
-                        combined.append(SearchResult(type: .appleMusicSong(song)))
+                
+                // Wait for Apple Music search if available
+                if musicLibrary.hasAppleMusicAccess && networkMonitor.isConnected {
+                    group.addTask {
+                        // Wait for Apple Music search to complete
+                        while musicLibrary.isSearchingAppleMusic {
+                            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+                        }
+                        appleMusicSongs = musicLibrary.appleMusicSongs
                     }
                 }
-            }
-            
-            // Update UI on main thread
-            await MainActor.run {
-                combinedResults = combined
-                isSearching = false
+                
+                // Wait for both searches to complete
+                await group.waitForAll()
+                
+                // Now do all expensive processing in background
+                let combined = await Task.detached(priority: .userInitiated) {
+                    await processAndCombineResults(localMatches: localMatches, appleMusicSongs: appleMusicSongs)
+                }.value
+                
+                // Update UI on main thread with pre-computed results
+                await MainActor.run {
+                    combinedResults = combined
+                    isSearching = false
+                }
             }
         }
     }
+    
+    // Process and combine results with all expensive operations done here
+    private func processAndCombineResults(localMatches: [MPMediaItem], appleMusicSongs: [Song]) async -> [SearchResult] {
+        var combined: [SearchResult] = []
+        
+        // Add local matches first - these are simple, no expensive operations needed
+        for song in localMatches {
+            combined.append(SearchResult(type: .localSong(song)))
+        }
+        
+        // Process Apple Music songs with expensive operations done here
+        if musicLibrary.hasAppleMusicAccess && networkMonitor.isConnected {
+            // Create a lookup dictionary for faster duplicate detection
+            let localSongKeys = Set(localMatches.map { song in
+                musicLibrary.createSongKey(
+                    title: song.title ?? "",
+                    artist: song.artist ?? "",
+                    album: song.albumTitle ?? ""
+                )
+            })
+            
+            for song in appleMusicSongs {
+                let songKey = musicLibrary.createSongKey(
+                    title: song.title,
+                    artist: song.artistName,
+                    album: song.albumTitle ?? ""
+                )
+                
+                // Check for duplicates using the lookup set (much faster)
+                let isDuplicate = localSongKeys.contains(songKey)
+                
+                if !isDuplicate {
+                    // Do all expensive operations here during loading
+                    let isInLibrary = musicLibrary.isAppleMusicSongInLibrary(song)
+                    let localSong = isInLibrary ? musicLibrary.getLocalSongMatch(for: song) : nil
+                    let playCount = localSong?.playCount
+                    
+                    let precomputedData = SearchResult.PrecomputedData(
+                        isInLibrary: isInLibrary,
+                        playCount: playCount,
+                        localSong: localSong
+                    )
+                    
+                    combined.append(SearchResult(type: .appleMusicSong(song, precomputedData)))
+                }
+            }
+        }
+        
+        return combined
+    }
 }
 
-// Unified search result model
-struct SearchResult: Identifiable {
-    enum ResultType {
-        case localSong(MPMediaItem)
-        case appleMusicSong(Song)
-    }
+// Optimized row views that don't do any expensive operations during rendering
+
+struct OptimizedLocalSongRow: View {
+    let song: MPMediaItem
+    let rank: Int
     
-    let id = UUID()
-    let type: ResultType
+    var body: some View {
+        HStack(spacing: Theme.Metrics.songRowSpacing) {
+            // Album Artwork first
+            LibraryArtworkView(artwork: song.artwork, size: Theme.Metrics.artworkSizeSmall)
+            
+            // Rank number using theme with dynamic width
+            let rankWidth = rank >= 1000 ? Theme.Metrics.rankWidthExtended : Theme.Metrics.rankWidth
+            Text("\(rank)")
+                .modifier(Theme.Modifiers.RankStyle(color: Theme.Colors.primary, width: rankWidth))
+            
+            // Song info section
+            VStack(alignment: .leading, spacing: Theme.Metrics.songInfoSpacing) {
+                HStack(spacing: Theme.Metrics.badgeSpacing) {
+                    Text(song.title ?? "Unknown")
+                        .font(Theme.Typography.songTitle)
+                        .foregroundColor(Theme.Colors.primaryText)
+                        .lineLimit(1)
+                    
+                    // Explicit badge using theme
+                    if song.isExplicitItem {
+                        Text("E")
+                            .explicitBadgeStyle()
+                    }
+                    
+                    Spacer()
+                }
+                
+                Text(song.artist ?? "Unknown Artist")
+                    .font(Theme.Typography.artistName)
+                    .foregroundColor(Theme.Colors.secondaryText)
+                    .lineLimit(1)
+            }
+            
+            // Play count - no expensive operations
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("\(song.playCount)")
+                    .font(Theme.Typography.subheadlineBold)
+                    .foregroundColor(Theme.Colors.primary)
+                
+                Text("plays")
+                    .font(Theme.Typography.caption2)
+                    .foregroundColor(Theme.Colors.secondaryText)
+            }
+        }
+        .padding(.vertical, Theme.Metrics.songRowVerticalPadding)
+        .contentShape(Rectangle())
+    }
+}
+
+struct OptimizedAppleMusicSongRow: View {
+    let song: Song
+    let rank: Int
+    let precomputedData: SearchResult.PrecomputedData
+    
+    var body: some View {
+        HStack(spacing: Theme.Metrics.songRowSpacing) {
+            // Album Artwork first
+            AsyncArtworkView.appleMusic(
+                artwork: song.artwork,
+                size: Theme.Metrics.artworkSizeSmall
+            )
+            
+            // Rank number using theme with dynamic width
+            let rankWidth = rank >= 1000 ? Theme.Metrics.rankWidthExtended : Theme.Metrics.rankWidth
+            Text("\(rank)")
+                .modifier(Theme.Modifiers.RankStyle(color: Theme.Colors.appleMusicColor, width: rankWidth))
+            
+            // Song info section
+            VStack(alignment: .leading, spacing: Theme.Metrics.songInfoSpacing) {
+                HStack(spacing: Theme.Metrics.badgeSpacing) {
+                    Text(song.title)
+                        .font(Theme.Typography.songTitle)
+                        .foregroundColor(Theme.Colors.primaryText)
+                        .lineLimit(1)
+                    
+                    // Explicit badge using theme
+                    if song.contentRating == .explicit {
+                        Text("E")
+                            .explicitBadgeStyle()
+                    }
+                    
+                    Spacer()
+                }
+                
+                Text(song.artistName)
+                    .font(Theme.Typography.artistName)
+                    .foregroundColor(Theme.Colors.secondaryText)
+                    .lineLimit(1)
+            }
+            
+            // Use pre-computed play count - no expensive operations during scrolling
+            if let playCount = precomputedData.playCount {
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("\(playCount)")
+                        .font(Theme.Typography.subheadlineBold)
+                        .foregroundColor(Theme.Colors.appleMusicColor)
+                    
+                    Text("plays")
+                        .font(Theme.Typography.caption2)
+                        .foregroundColor(Theme.Colors.secondaryText)
+                }
+            } else {
+                // Show Apple Music indicator if not in library
+                Image(systemName: "applelogo")
+                    .font(.system(size: 14))
+                    .foregroundColor(Theme.Colors.appleMusicColor)
+            }
+        }
+        .padding(.vertical, Theme.Metrics.songRowVerticalPadding)
+        .contentShape(Rectangle())
+    }
 }
 
 // Empty state view for no results
