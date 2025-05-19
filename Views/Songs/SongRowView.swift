@@ -53,139 +53,125 @@ struct SongRowView<T>: View {
     private func localSongRow() -> some View {
         let song = item as! MPMediaItem
         
-        HStack(spacing: Theme.Metrics.spacingMedium) {
-            // Rank
-            Text("#\(rank)")
-                .rankStyle()
-            
-            // Artwork
+        HStack(spacing: Theme.Metrics.songRowSpacing) {
+            // Album Artwork first
             LibraryArtworkView(artwork: song.artwork, size: Theme.Metrics.artworkSizeSmall)
             
-            // Song info
-            VStack(alignment: .leading, spacing: Theme.Metrics.spacingXSmall) {
-                Text(song.title ?? "Unknown")
-                    .font(Theme.Typography.bodyBold)
-                    .foregroundColor(Theme.Colors.primaryText)
-                    .lineLimit(1)
-                
-                if let artist = song.artist {
-                    Text(artist)
-                        .font(Theme.Typography.caption)
-                        .foregroundColor(Theme.Colors.secondaryText)
+            // Rank number using theme with dynamic width
+            let rankWidth = rank >= 1000 ? Theme.Metrics.rankWidthExtended : Theme.Metrics.rankWidth
+            Text("\(rank)")
+                .modifier(Theme.Modifiers.RankStyle(color: Theme.Colors.primary, width: rankWidth))
+            
+            // Song info section
+            VStack(alignment: .leading, spacing: Theme.Metrics.songInfoSpacing) {
+                HStack(spacing: Theme.Metrics.badgeSpacing) {
+                    Text(song.title ?? "Unknown")
+                        .font(Theme.Typography.songTitle)
+                        .foregroundColor(Theme.Colors.primaryText)
                         .lineLimit(1)
+                    
+                    // Explicit badge using theme
+                    if song.isExplicitItem {
+                        Text("E")
+                            .explicitBadgeStyle()
+                    }
+                    
+                    Spacer()
                 }
+                
+                Text(song.artist ?? "Unknown Artist")
+                    .font(Theme.Typography.artistName)
+                    .foregroundColor(Theme.Colors.secondaryText)
+                    .lineLimit(1)
             }
             
-            Spacer()
-            
-            // Play count and cloud indicator
-            VStack(alignment: .trailing, spacing: Theme.Metrics.spacingXSmall) {
-                HStack(spacing: Theme.Metrics.spacingXSmall) {
-                    Text("\(song.playCount) plays")
-                        .font(Theme.Typography.subheadlineBold)
-                        .foregroundColor(Theme.Colors.primary)
-                    
-                    if song.isCloudItem {
-                        Image(systemName: "cloud")
-                            .iconStyle(size: Theme.Metrics.iconSizeSmall)
-                    }
-                }
+            // Play count instead of ellipsis
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("\(song.playCount)")
+                    .font(Theme.Typography.subheadlineBold)
+                    .foregroundColor(Theme.Colors.primary)
                 
-                if let albumTitle = song.albumTitle {
-                    Text(albumTitle)
-                        .font(Theme.Typography.caption2)
-                        .foregroundColor(Theme.Colors.secondaryText)
-                        .lineLimit(1)
-                }
+                Text("plays")
+                    .font(Theme.Typography.caption2)
+                    .foregroundColor(Theme.Colors.secondaryText)
             }
         }
-        .padding(.vertical, Theme.Metrics.spacingXSmall)
+        .padding(.vertical, Theme.Metrics.songRowVerticalPadding)
+        .contentShape(Rectangle())
     }
     
     @ViewBuilder
     private func appleMusicSongRow() -> some View {
         let song = item as! Song
         
-        HStack(spacing: Theme.Metrics.spacingMedium) {
-            // Rank
-            Text("#\(rank)")
-                .rankStyle(color: Theme.Colors.appleMusicColor)
+        HStack(spacing: Theme.Metrics.songRowSpacing) {
+            // Album Artwork first
+            AsyncArtworkView.appleMusic(
+                artwork: song.artwork,
+                size: Theme.Metrics.artworkSizeSmall
+            )
             
-            // Artwork with optimized rendering - using high resolution
-            ZStack {
-                AsyncArtworkView.appleMusic(
-                    artwork: song.artwork,
-                    size: Theme.Metrics.artworkSizeSmall
-                )
-                
-                // "In Library" indicator overlay - only render if needed
-                if isInLibrary {
-                    VStack {
-                        HStack {
-                            Spacer()
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(Theme.Typography.caption)
-                                .foregroundColor(.white)
-                                .background(Theme.Colors.inLibrary)
-                                .clipShape(Circle())
-                        }
-                        Spacer()
+            // Rank number using theme with dynamic width
+            let rankWidth = rank >= 1000 ? Theme.Metrics.rankWidthExtended : Theme.Metrics.rankWidth
+            Text("\(rank)")
+                .modifier(Theme.Modifiers.RankStyle(color: Theme.Colors.appleMusicColor, width: rankWidth))
+            
+            // Song info section
+            VStack(alignment: .leading, spacing: Theme.Metrics.songInfoSpacing) {
+                HStack(spacing: Theme.Metrics.badgeSpacing) {
+                    Text(song.title)
+                        .font(Theme.Typography.songTitle)
+                        .foregroundColor(Theme.Colors.primaryText)
+                        .lineLimit(1)
+                    
+                    // Explicit badge using theme
+                    if song.contentRating == .explicit {
+                        Text("E")
+                            .explicitBadgeStyle()
                     }
-                    .padding(2)
-                }
-            }
-            
-            // Song info
-            VStack(alignment: .leading, spacing: Theme.Metrics.spacingXSmall) {
-                Text(song.title)
-                    .font(Theme.Typography.bodyBold)
-                    .foregroundColor(Theme.Colors.primaryText)
-                    .lineLimit(1)
-                
-                Text(song.artistName)
-                    .font(Theme.Typography.caption)
-                    .foregroundColor(Theme.Colors.secondaryText)
-                    .lineLimit(1)
-            }
-            
-            Spacer()
-            
-            // Apple Music indicator, play count (if in library), and album
-            VStack(alignment: .trailing, spacing: Theme.Metrics.spacingXSmall) {
-                if isInLibrary {
-                    HStack(spacing: Theme.Metrics.spacingXSmall) {
+                    
+                    // Library indicator (subtle)
+                    if isInLibrary {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(Theme.Typography.caption)
-                            .foregroundColor(Theme.Colors.inLibrary)
-                        Text("In Library")
-                            .font(Theme.Typography.caption)
+                            .font(.system(size: 12))
                             .foregroundColor(Theme.Colors.inLibrary)
                     }
                     
-                    if let playCount = playCount {
-                        Text("\(playCount) plays")
-                            .font(Theme.Typography.caption2)
-                            .fontWeight(.medium)
-                            .foregroundColor(Theme.Colors.inLibrary)
-                    }
-                } else {
-                    HStack(spacing: Theme.Metrics.spacingXSmall) {
-                        Image(systemName: "applelogo")
-                            .font(Theme.Typography.caption)
-                            .foregroundColor(Theme.Colors.appleMusicColor)
-                        Text("Apple Music")
-                            .font(Theme.Typography.caption)
-                            .foregroundColor(Theme.Colors.appleMusicColor)
-                    }
+                    Spacer()
                 }
                 
-                Text(song.albumTitle ?? "")
-                    .font(Theme.Typography.caption2)
+                Text(song.artistName)
+                    .font(Theme.Typography.artistName)
                     .foregroundColor(Theme.Colors.secondaryText)
                     .lineLimit(1)
             }
+            
+            // Play count for Apple Music songs (if in library)
+            if isInLibrary, let playCount = playCount {
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("\(playCount)")
+                        .font(Theme.Typography.subheadlineBold)
+                        .foregroundColor(Theme.Colors.inLibrary)
+                    
+                    Text("plays")
+                        .font(Theme.Typography.caption2)
+                        .foregroundColor(Theme.Colors.secondaryText)
+                }
+            } else {
+                // Show Apple Music indicator if not in library
+                VStack(alignment: .trailing, spacing: 2) {
+                    Image(systemName: "applelogo")
+                        .font(.system(size: 14))
+                        .foregroundColor(Theme.Colors.appleMusicColor)
+                    
+                    Text("Apple Music")
+                        .font(Theme.Typography.caption2)
+                        .foregroundColor(Theme.Colors.appleMusicColor)
+                }
+            }
         }
-        .padding(.vertical, Theme.Metrics.spacingXSmall)
+        .padding(.vertical, Theme.Metrics.songRowVerticalPadding)
+        .contentShape(Rectangle())
     }
 }
 

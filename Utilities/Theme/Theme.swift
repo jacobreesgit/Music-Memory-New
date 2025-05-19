@@ -47,8 +47,11 @@ enum Theme {
         static let caption = Font.caption
         static let caption2 = Font.caption2
         
-        // Special text
-        static let rankNumber = Font.system(size: 16, weight: .bold)
+        // Apple Music style typography
+        static let songTitle = Font.system(size: 16, weight: .regular)
+        static let artistName = Font.system(size: 14, weight: .regular)
+        static let rankNumber = Font.system(size: 16, weight: .medium)
+        static let explicitBadge = Font.system(size: 9, weight: .medium)
     }
     
     /// Layout metrics for consistent spacing, sizing and layout
@@ -65,13 +68,19 @@ enum Theme {
         static let spacingLarge: CGFloat = 16
         static let spacingXLarge: CGFloat = 24
         
+        // Song row specific spacing
+        static let songRowSpacing: CGFloat = 12
+        static let songInfoSpacing: CGFloat = 2
+        static let badgeSpacing: CGFloat = 6
+        
         // Sizes
         static let iconSizeSmall: CGFloat = 16
         static let iconSizeMedium: CGFloat = 24
         static let iconSizeLarge: CGFloat = 32
         static let iconSizeXLarge: CGFloat = 60
         
-        static let artworkSizeSmall: CGFloat = 50
+        // Updated artwork sizes to match Apple Music
+        static let artworkSizeSmall: CGFloat = 44  // Changed from 50 to 44
         static let artworkSizeMedium: CGFloat = 100
         static let artworkSizeLarge: CGFloat = 250
         
@@ -80,8 +89,18 @@ enum Theme {
         static let cornerRadiusMedium: CGFloat = 12
         static let cornerRadiusLarge: CGFloat = 16
         
-        // Rank width
-        static let rankWidth: CGFloat = 40
+        // Rank width - sized for different digit counts
+        static let rankWidth: CGFloat = 33  // For ranks 1-999
+        static let rankWidthExtended: CGFloat = 45  // For ranks 1000+
+        
+        // Song row heights
+        static let songRowVerticalPadding: CGFloat = 8
+        static let contextButtonSize: CGFloat = 20
+        
+        // Explicit badge
+        static let explicitBadgePadding: CGFloat = 4
+        static let explicitBadgeVerticalPadding: CGFloat = 1
+        static let explicitBadgeCornerRadius: CGFloat = 2
     }
     
     /// Shadow definitions for depth and elevation
@@ -147,12 +166,31 @@ enum Theme {
         
         struct RankStyle: ViewModifier {
             let color: Color
+            let width: CGFloat
+            
+            init(color: Color, width: CGFloat = Metrics.rankWidth) {
+                self.color = color
+                self.width = width
+            }
             
             func body(content: Content) -> some View {
                 content
                     .font(Typography.rankNumber)
                     .foregroundColor(color)
-                    .frame(width: Metrics.rankWidth, alignment: .leading)
+                    .frame(width: width, alignment: .center)
+            }
+        }
+        
+        // New modifier for explicit content badge
+        struct ExplicitBadgeStyle: ViewModifier {
+            func body(content: Content) -> some View {
+                content
+                    .font(Typography.explicitBadge)
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, Metrics.explicitBadgePadding)
+                    .padding(.vertical, Metrics.explicitBadgeVerticalPadding)
+                    .background(Color.secondary.opacity(0.2))
+                    .clipShape(RoundedRectangle(cornerRadius: Metrics.explicitBadgeCornerRadius))
             }
         }
     }
@@ -178,6 +216,10 @@ extension View {
     
     func searchBarStyle() -> some View {
         modifier(Theme.Modifiers.SearchBarStyle())
+    }
+    
+    func explicitBadgeStyle() -> some View {
+        modifier(Theme.Modifiers.ExplicitBadgeStyle())
     }
     
     func applyShadow(_ shadow: Shadow) -> some View {
