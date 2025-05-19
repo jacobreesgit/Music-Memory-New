@@ -23,7 +23,10 @@ struct MusicMemoryApp: App {
                 .environmentObject(musicLibrary)
                 .onAppear {
                     // Request permission and load data when app opens
-                    musicLibrary.requestPermissionAndLoadLibrary()
+                    // Only request if not already loading
+                    if !musicLibrary.isLoading {
+                        musicLibrary.requestPermissionAndLoadLibrary()
+                    }
                 }
         }
     }

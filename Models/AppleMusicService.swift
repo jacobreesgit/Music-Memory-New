@@ -26,7 +26,8 @@ class AppleMusicService {
     func requestPermission() async -> Bool {
         let status = await MusicAuthorization.request()
         
-        await MainActor.run {
+        await MainActor.run { [weak self] in
+            guard let self = self else { return }
             self.authorizationStatus = status
             self.hasAccess = status == .authorized
         }
@@ -40,8 +41,8 @@ class AppleMusicService {
             return []
         }
         
-        await MainActor.run {
-            self.isSearching = true
+        await MainActor.run { [weak self] in
+            self?.isSearching = true
         }
         
         do {
@@ -50,7 +51,8 @@ class AppleMusicService {
             let response = try await request.response()
             let songs = Array(response.songs)
             
-            await MainActor.run {
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
                 self.searchResults = songs
                 self.isSearching = false
             }
@@ -59,7 +61,8 @@ class AppleMusicService {
         } catch {
             print("Apple Music search error: \(error)")
             
-            await MainActor.run {
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
                 self.searchResults = []
                 self.isSearching = false
             }

@@ -13,7 +13,7 @@ struct ContentView: View {
     @EnvironmentObject var musicLibrary: MusicLibraryModel
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             if musicLibrary.isLoading {
                 VStack(spacing: Theme.Metrics.spacingLarge) {
                     ProgressView()
@@ -63,9 +63,9 @@ struct ContentView: View {
                         .buttonStyle(Theme.Modifiers.PrimaryButtonStyle())
                         
                         Button("Open Settings") {
-                            if let url = URL(string: UIApplication.openSettingsURLString) {
-                                UIApplication.shared.open(url)
-                            }
+                            // Use guard to safely unwrap URL
+                            guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+                            UIApplication.shared.open(url)
                         }
                         .buttonStyle(Theme.Modifiers.SecondaryButtonStyle())
                     }
@@ -75,6 +75,11 @@ struct ContentView: View {
                 SongsView()
             }
         }
-        .navigationViewStyle(StackNavigationViewStyle())
+        .onAppear {
+            // Double check that we're trying to load on appear
+            if !musicLibrary.hasAccess && !musicLibrary.hasAppleMusicAccess && !musicLibrary.isLoading {
+                musicLibrary.requestPermissionAndLoadLibrary()
+            }
+        }
     }
 }

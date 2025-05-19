@@ -31,7 +31,8 @@ class LocalMusicLibrary {
         
         if currentStatus == .authorized {
             // Already authorized
-            DispatchQueue.main.async {
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
                 self.hasAccess = true
                 self.authorizationStatus = .authorized
                 completion(true)
@@ -40,14 +41,16 @@ class LocalMusicLibrary {
             // Request authorization
             MPMediaLibrary.requestAuthorization { [weak self] status in
                 DispatchQueue.main.async {
-                    self?.authorizationStatus = status
-                    self?.hasAccess = status == .authorized
+                    guard let self = self else { return }
+                    self.authorizationStatus = status
+                    self.hasAccess = status == .authorized
                     completion(status == .authorized)
                 }
             }
         } else {
             // Permission denied
-            DispatchQueue.main.async {
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
                 self.authorizationStatus = currentStatus
                 self.hasAccess = false
                 completion(false)
@@ -58,13 +61,22 @@ class LocalMusicLibrary {
     /// Load all songs from the local music library
     func loadLibrary(completion: @escaping () -> Void) {
         guard hasAccess else {
-            completion()
+            DispatchQueue.main.async {
+                completion()
+            }
             return
         }
         
         isLoading = true
         
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else {
+                DispatchQueue.main.async {
+                    completion()
+                }
+                return
+            }
+            
             let songsQuery = MPMediaQuery.songs()
             songsQuery.groupingType = .title
             
@@ -79,10 +91,14 @@ class LocalMusicLibrary {
                 }
             }
             
-            DispatchQueue.main.async {
-                self?.songs = loadedSongs
-                self?.buildSongLookupCache()
-                self?.isLoading = false
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else {
+                    completion()
+                    return
+                }
+                self.songs = loadedSongs
+                self.buildSongLookupCache()
+                self.isLoading = false
                 completion()
             }
         }
@@ -93,9 +109,12 @@ class LocalMusicLibrary {
         songLookupCache.removeAll()
         
         for song in songs {
-            guard let title = song.title, let artist = song.artist else { continue }
+            // Use safe nil-coalescing instead of force-unwrapping
+            let title = song.title ?? ""
+            let artist = song.artist ?? ""
+            let album = song.albumTitle ?? ""
             
-            let key = createSongKey(title: title, artist: artist, album: song.albumTitle ?? "")
+            let key = createSongKey(title: title, artist: artist, album: album)
             songLookupCache[key] = song
         }
     }

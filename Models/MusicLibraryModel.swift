@@ -39,31 +39,71 @@ class MusicLibraryModel: ObservableObject {
     
     /// Request permission for both local library and Apple Music
     func requestPermissionAndLoadLibrary() {
+        print("DEBUG: Starting permission request and library load")
         isLoading = true
         
         // First handle local library permissions
         localLibrary.requestPermission { [weak self] success in
-            guard let self = self else { return }
+            guard let self = self else {
+                print("DEBUG: Self is nil in permission completion")
+                return
+            }
             
+            print("DEBUG: Local library permission result: \(success)")
             self.hasAccess = success
             self.authorizationStatus = self.localLibrary.authorizationStatus
             
-            if success {
-                self.localLibrary.loadLibrary {
-                    self.songs = self.localLibrary.songs
+            // Create a helper function to check if we're done loading
+            let checkLoadingComplete = { [weak self] in
+                guard let self = self else { return }
+                
+                // If we've fetched the local library songs OR we don't have access to local library
+                // AND we've determined Apple Music access (not .notDetermined)
+                if (self.songs.count > 0 || !self.hasAccess) &&
+                   self.appleMusicAuthorizationStatus != .notDetermined {
+                    print("DEBUG: Setting isLoading to false in checkLoadingComplete")
+                    self.isLoading = false
                 }
             }
             
+            if success {
+                print("DEBUG: Loading local library")
+                self.localLibrary.loadLibrary { [weak self] in
+                    guard let self = self else {
+                        print("DEBUG: Self is nil in loadLibrary completion")
+                        return
+                    }
+                    print("DEBUG: Library loaded with \(self.localLibrary.songs.count) songs")
+                    self.songs = self.localLibrary.songs
+                    checkLoadingComplete()
+                }
+            } else {
+                // If no local library access, we don't need to wait for library loading
+                print("DEBUG: No local library access, checking if loading is complete")
+                checkLoadingComplete()
+            }
+            
             // Then handle Apple Music permissions
-            Task {
+            Task { [weak self] in
+                guard let self = self else { return }
+                print("DEBUG: Requesting Apple Music permission")
                 let appleMusicSuccess = await self.appleMusicService.requestPermission()
                 
-                await MainActor.run {
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+                    print("DEBUG: Apple Music permission result: \(appleMusicSuccess)")
                     self.hasAppleMusicAccess = appleMusicSuccess
                     self.appleMusicAuthorizationStatus = self.appleMusicService.authorizationStatus
                     
-                    if !self.hasAccess && !self.hasAppleMusicAccess {
-                        self.isLoading = false
+                    // Check again if we're done loading
+                    checkLoadingComplete()
+                    
+                    // Extra safety to prevent endless loading if something goes wrong
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { [weak self] in
+                        if let self = self, self.isLoading {
+                            print("DEBUG: Safety timeout triggered - forcing isLoading to false")
+                            self.isLoading = false
+                        }
                     }
                 }
             }
@@ -141,7 +181,8 @@ class MusicLibraryModel: ObservableObject {
             return song1.title < song2.title
         }
         
-        await MainActor.run {
+        await MainActor.run { [weak self] in
+            guard let self = self else { return }
             self.appleMusicSongs = sortedResults
             self.isSearchingAppleMusic = false
             self.precomputeSongInfo()
@@ -150,7 +191,9 @@ class MusicLibraryModel: ObservableObject {
     
     /// Precompute song information to improve scrolling performance
     private func precomputeSongInfo() {
-        Task {
+        Task { [weak self] in
+            guard let self = self else { return }
+            
             // Clear existing caches
             self.songLibraryStatus.removeAll()
             self.songPlayCounts.removeAll()
@@ -164,7 +207,9 @@ class MusicLibraryModel: ObservableObject {
                 // Check if song is in library (expensive operation, so we cache it)
                 let inLibrary = self.isAppleMusicSongInLibrary(song)
                 
-                await MainActor.run {
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+                    
                     // Update caches on main thread to avoid concurrency issues
                     self.songLibraryStatus[key] = inLibrary
                     
@@ -210,8 +255,7 @@ class MusicLibraryModel: ObservableObject {
     func isAppleMusicSongInLibrary(_ appleMusicSong: Song) -> Bool {
         guard hasAccess else { return false }
         
-        // First try direct lookup
-        _ = createSongKey(title: appleMusicSong.title, artist: appleMusicSong.artistName, album: appleMusicSong.albumTitle ?? "")
+        // First try direct lookup - removed unused variable declaration
         if localLibrary.findLocalSong(title: appleMusicSong.title, artist: appleMusicSong.artistName, album: appleMusicSong.albumTitle ?? "") != nil {
             return true
         }

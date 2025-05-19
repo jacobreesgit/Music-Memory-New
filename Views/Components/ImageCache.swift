@@ -10,27 +10,19 @@ import SwiftUI
 
 class ImageCache {
     static let shared = ImageCache()
-    private var cache: [URL: UIImage] = [:]
+    private var cache: NSCache<NSURL, UIImage> = NSCache() // Use NSCache instead of Dictionary to better manage memory
     private let cacheQueue = DispatchQueue(label: "com.jacobrees.MusicMemory.ImageCache", attributes: .concurrent)
     
     func image(for url: URL) -> UIImage? {
-        var resultImage: UIImage?
-        cacheQueue.sync {
-            resultImage = cache[url]
-        }
-        return resultImage
+        return cache.object(forKey: url as NSURL)
     }
     
     func setImage(_ image: UIImage, for url: URL) {
-        cacheQueue.async(flags: .barrier) {
-            self.cache[url] = image
-        }
+        cache.setObject(image, forKey: url as NSURL)
     }
     
     func clearCache() {
-        cacheQueue.async(flags: .barrier) {
-            self.cache.removeAll()
-        }
+        cache.removeAllObjects()
     }
 }
 

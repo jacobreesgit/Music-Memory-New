@@ -149,15 +149,17 @@ struct EmptyStateView: View {
 struct LocalSongsList: View {
     let songs: [MPMediaItem]
     
-    extension SongRowView {
-        static func create(from song: MPMediaItem, rank: Int) -> SongRowView<MPMediaItem> {
-            return SongRowView<MPMediaItem>(song: song, rank: rank)
-        }
-        
-        static func create(from song: Song, rank: Int, musicLibrary: MusicLibraryModel) -> SongRowView<Song> {
-            let isInLibrary = musicLibrary.isSongInLibrary(song)
-            let playCount = musicLibrary.getPlayCount(for: song)
-            return SongRowView<Song>(song: song, rank: rank, isInLibrary: isInLibrary, playCount: playCount)
+    var body: some View {
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                ForEach(Array(songs.enumerated()), id: \.element.persistentID) { index, song in
+                    NavigationLink(destination: SongDetailView(song: song, rank: index + 1)) {
+                        SongRowView<MPMediaItem>.create(from: song, rank: index + 1)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+            .padding(.horizontal)
         }
     }
 }
@@ -191,12 +193,12 @@ struct AppleMusicResultRow: View {
             if isInLibrary, let localSong = musicLibrary.getLocalSongMatch(for: song) {
                 // If the song is in the local library, navigate to SongDetailView
                 NavigationLink(destination: SongDetailView(song: localSong, rank: index + 1)) {
-                    SongRowView.create(from: song, rank: index + 1, musicLibrary: musicLibrary)
+                    SongRowView<Song>.create(from: song, rank: index + 1, musicLibrary: musicLibrary)
                 }
             } else {
                 // If not in library, navigate to AppleMusicSongDetailView
                 NavigationLink(destination: AppleMusicSongDetailView(song: song, rank: index + 1)) {
-                    SongRowView.create(from: song, rank: index + 1, musicLibrary: musicLibrary)
+                    SongRowView<Song>.create(from: song, rank: index + 1, musicLibrary: musicLibrary)
                 }
             }
         }

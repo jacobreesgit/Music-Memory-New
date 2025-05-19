@@ -189,13 +189,13 @@ struct SongRowView<T>: View {
     }
 }
 
-// Factory method to create the appropriate SongRowView from a model
+// Factory methods for creating SongRowView with proper type specification
 extension SongRowView {
-    static func create(from song: MPMediaItem, rank: Int) -> some View {
-        SongRowView<MPMediaItem>(song: song, rank: rank)
+    static func create(from song: MPMediaItem, rank: Int) -> SongRowView<MPMediaItem> {
+        return SongRowView<MPMediaItem>(song: song, rank: rank)
     }
     
-    static func create(from song: Song, rank: Int, musicLibrary: MusicLibraryModel) -> some View {
+    static func create(from song: Song, rank: Int, musicLibrary: MusicLibraryModel) -> SongRowView<Song> {
         let isInLibrary = musicLibrary.isSongInLibrary(song)
         let playCount = musicLibrary.getPlayCount(for: song)
         return SongRowView<Song>(song: song, rank: rank, isInLibrary: isInLibrary, playCount: playCount)
