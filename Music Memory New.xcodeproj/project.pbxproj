@@ -6,26 +6,53 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		075185572DDB64A2003EE30E /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 075185402DDB64A2003EE30E /* AppColors.swift */; };
+		075185582DDB64A2003EE30E /* MusicLibraryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0751854C2DDB64A2003EE30E /* MusicLibraryModel.swift */; };
+		075185592DDB64A2003EE30E /* AppModifiers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 075185452DDB64A2003EE30E /* AppModifiers.swift */; };
+		0751855A2DDB64A2003EE30E /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 075185472DDB64A2003EE30E /* ContentView.swift */; };
+		0751855B2DDB64A2003EE30E /* AppFonts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 075185412DDB64A2003EE30E /* AppFonts.swift */; };
+		0751855C2DDB64A2003EE30E /* AppMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 075185442DDB64A2003EE30E /* AppMetrics.swift */; };
+		0751855D2DDB64A2003EE30E /* SongDetailBase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 075185502DDB64A2003EE30E /* SongDetailBase.swift */; };
+		0751855E2DDB64A2003EE30E /* AppHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 075185422DDB64A2003EE30E /* AppHelpers.swift */; };
+		0751855F2DDB64A2003EE30E /* SongArtworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0751854F2DDB64A2003EE30E /* SongArtworkView.swift */; };
+		075185602DDB64A2003EE30E /* SongsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 075185542DDB64A2003EE30E /* SongsView.swift */; };
+		075185612DDB64A2003EE30E /* SongDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 075185512DDB64A2003EE30E /* SongDetailView.swift */; };
+		075185622DDB64A2003EE30E /* DetailRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 075185482DDB64A2003EE30E /* DetailRow.swift */; };
+		075185632DDB64A2003EE30E /* Music_Memory_NewApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0751854B2DDB64A2003EE30E /* Music_Memory_NewApp.swift */; };
+		075185642DDB64A2003EE30E /* AppleMusicSongDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 075185432DDB64A2003EE30E /* AppleMusicSongDetailView.swift */; };
+		075185652DDB64A2003EE30E /* SongRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = 075185532DDB64A2003EE30E /* SongRows.swift */; };
+		075185662DDB64A2003EE30E /* ImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 075185492DDB64A2003EE30E /* ImageCache.swift */; };
+		075185672DDB64A2003EE30E /* SongInfoHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 075185522DDB64A2003EE30E /* SongInfoHeader.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
+		075185402DDB64A2003EE30E /* AppColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppColors.swift; sourceTree = "<group>"; };
+		075185412DDB64A2003EE30E /* AppFonts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFonts.swift; sourceTree = "<group>"; };
+		075185422DDB64A2003EE30E /* AppHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppHelpers.swift; sourceTree = "<group>"; };
+		075185432DDB64A2003EE30E /* AppleMusicSongDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicSongDetailView.swift; sourceTree = "<group>"; };
+		075185442DDB64A2003EE30E /* AppMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppMetrics.swift; sourceTree = "<group>"; };
+		075185452DDB64A2003EE30E /* AppModifiers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModifiers.swift; sourceTree = "<group>"; };
+		075185472DDB64A2003EE30E /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		075185482DDB64A2003EE30E /* DetailRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailRow.swift; sourceTree = "<group>"; };
+		075185492DDB64A2003EE30E /* ImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCache.swift; sourceTree = "<group>"; };
+		0751854A2DDB64A2003EE30E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		0751854B2DDB64A2003EE30E /* Music_Memory_NewApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Music_Memory_NewApp.swift; sourceTree = "<group>"; };
+		0751854C2DDB64A2003EE30E /* MusicLibraryModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicLibraryModel.swift; sourceTree = "<group>"; };
+		0751854D2DDB64A2003EE30E /* MusicMemory.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MusicMemory.entitlements; sourceTree = "<group>"; };
+		0751854E2DDB64A2003EE30E /* MusicMemoryWidgetsExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MusicMemoryWidgetsExtension.entitlements; sourceTree = "<group>"; };
+		0751854F2DDB64A2003EE30E /* SongArtworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongArtworkView.swift; sourceTree = "<group>"; };
+		075185502DDB64A2003EE30E /* SongDetailBase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongDetailBase.swift; sourceTree = "<group>"; };
+		075185512DDB64A2003EE30E /* SongDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongDetailView.swift; sourceTree = "<group>"; };
+		075185522DDB64A2003EE30E /* SongInfoHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongInfoHeader.swift; sourceTree = "<group>"; };
+		075185532DDB64A2003EE30E /* SongRows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongRows.swift; sourceTree = "<group>"; };
+		075185542DDB64A2003EE30E /* SongsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongsView.swift; sourceTree = "<group>"; };
 		077595712DDA5D1E008EAD9A /* Music Memory New.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Music Memory New.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
-
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		0751851B2DDA5F8A003EE30E /* Exceptions for "Music Memory New" folder in "Music Memory New" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 077595702DDA5D1E008EAD9A /* Music Memory New */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		077595732DDA5D1E008EAD9A /* Music Memory New */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				0751851B2DDA5F8A003EE30E /* Exceptions for "Music Memory New" folder in "Music Memory New" target */,
-			);
 			path = "Music Memory New";
 			sourceTree = "<group>";
 		};
@@ -42,9 +69,101 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		075185682DDB64EA003EE30E /* App */ = {
+			isa = PBXGroup;
+			children = (
+				075185472DDB64A2003EE30E /* ContentView.swift */,
+				0751854A2DDB64A2003EE30E /* Info.plist */,
+				0751854B2DDB64A2003EE30E /* Music_Memory_NewApp.swift */,
+				0751854D2DDB64A2003EE30E /* MusicMemory.entitlements */,
+				0751854E2DDB64A2003EE30E /* MusicMemoryWidgetsExtension.entitlements */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		0751856D2DDB6572003EE30E /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				0751854C2DDB64A2003EE30E /* MusicLibraryModel.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		0751856E2DDB657F003EE30E /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				075185712DDB65AF003EE30E /* Songs */,
+				075185702DDB6597003EE30E /* Components */,
+				0751856F2DDB6585003EE30E /* SongDetail */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		0751856F2DDB6585003EE30E /* SongDetail */ = {
+			isa = PBXGroup;
+			children = (
+				075185432DDB64A2003EE30E /* AppleMusicSongDetailView.swift */,
+				075185482DDB64A2003EE30E /* DetailRow.swift */,
+				075185502DDB64A2003EE30E /* SongDetailBase.swift */,
+				075185512DDB64A2003EE30E /* SongDetailView.swift */,
+			);
+			path = SongDetail;
+			sourceTree = "<group>";
+		};
+		075185702DDB6597003EE30E /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				075185492DDB64A2003EE30E /* ImageCache.swift */,
+				0751854F2DDB64A2003EE30E /* SongArtworkView.swift */,
+				075185522DDB64A2003EE30E /* SongInfoHeader.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		075185712DDB65AF003EE30E /* Songs */ = {
+			isa = PBXGroup;
+			children = (
+				075185532DDB64A2003EE30E /* SongRows.swift */,
+				075185542DDB64A2003EE30E /* SongsView.swift */,
+			);
+			path = Songs;
+			sourceTree = "<group>";
+		};
+		075185722DDB65BA003EE30E /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				075185742DDB65D6003EE30E /* Extensions */,
+				075185732DDB65C0003EE30E /* Theme */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+		075185732DDB65C0003EE30E /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				075185402DDB64A2003EE30E /* AppColors.swift */,
+				075185412DDB64A2003EE30E /* AppFonts.swift */,
+				075185442DDB64A2003EE30E /* AppMetrics.swift */,
+				075185452DDB64A2003EE30E /* AppModifiers.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		075185742DDB65D6003EE30E /* Extensions */ = {
+			isa = PBXGroup;
+			children = (
+				075185422DDB64A2003EE30E /* AppHelpers.swift */,
+			);
+			path = Extensions;
+			sourceTree = "<group>";
+		};
 		077595682DDA5D1E008EAD9A = {
 			isa = PBXGroup;
 			children = (
+				075185722DDB65BA003EE30E /* Utilities */,
+				0751856E2DDB657F003EE30E /* Views */,
+				0751856D2DDB6572003EE30E /* Models */,
+				075185682DDB64EA003EE30E /* App */,
 				077595732DDA5D1E008EAD9A /* Music Memory New */,
 				077595722DDA5D1E008EAD9A /* Products */,
 			);
@@ -132,6 +251,23 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				075185572DDB64A2003EE30E /* AppColors.swift in Sources */,
+				075185582DDB64A2003EE30E /* MusicLibraryModel.swift in Sources */,
+				075185592DDB64A2003EE30E /* AppModifiers.swift in Sources */,
+				0751855A2DDB64A2003EE30E /* ContentView.swift in Sources */,
+				0751855B2DDB64A2003EE30E /* AppFonts.swift in Sources */,
+				0751855C2DDB64A2003EE30E /* AppMetrics.swift in Sources */,
+				0751855D2DDB64A2003EE30E /* SongDetailBase.swift in Sources */,
+				0751855E2DDB64A2003EE30E /* AppHelpers.swift in Sources */,
+				0751855F2DDB64A2003EE30E /* SongArtworkView.swift in Sources */,
+				075185602DDB64A2003EE30E /* SongsView.swift in Sources */,
+				075185612DDB64A2003EE30E /* SongDetailView.swift in Sources */,
+				075185622DDB64A2003EE30E /* DetailRow.swift in Sources */,
+				075185632DDB64A2003EE30E /* Music_Memory_NewApp.swift in Sources */,
+				075185642DDB64A2003EE30E /* AppleMusicSongDetailView.swift in Sources */,
+				075185652DDB64A2003EE30E /* SongRows.swift in Sources */,
+				075185662DDB64A2003EE30E /* ImageCache.swift in Sources */,
+				075185672DDB64A2003EE30E /* SongInfoHeader.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -269,7 +405,7 @@
 				DEVELOPMENT_TEAM = 5RP4WRQ9V2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Music Memory New/Info.plist";
+				INFOPLIST_FILE = "Music Memory New/App/Info.plist";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -298,7 +434,7 @@
 				DEVELOPMENT_TEAM = 5RP4WRQ9V2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Music Memory New/Info.plist";
+				INFOPLIST_FILE = "Music Memory New/App/Info.plist";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
