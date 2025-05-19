@@ -139,6 +139,7 @@ struct SongsView: View {
                 }
             }
         }
+        .padding(.top, AppMetrics.paddingMedium) // Add padding above entire content
         .navigationTitle("Songs")
         .onAppear {
             // Refresh library when view appears
