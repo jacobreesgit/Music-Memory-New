@@ -16,13 +16,13 @@ struct SongsView: View {
     @State private var searchDebounceTimer: Timer?
     
     var filteredLocalSongs: [MPMediaItem] {
-        if searchText.isEmpty {
+        if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return musicLibrary.songs
         } else {
             return musicLibrary.songs.filter { song in
-                (song.title?.localizedCaseInsensitiveContains(searchText) ?? false) ||
-                (song.artist?.localizedCaseInsensitiveContains(searchText) ?? false) ||
-                (song.albumTitle?.localizedCaseInsensitiveContains(searchText) ?? false)
+                AppHelpers.fuzzyMatch(song.title, searchText) ||
+                AppHelpers.fuzzyMatch(song.artist, searchText) ||
+                AppHelpers.fuzzyMatch(song.albumTitle, searchText)
             }
         }
     }
@@ -40,11 +40,12 @@ struct SongsView: View {
                         // Debounce Apple Music search
                         searchDebounceTimer?.invalidate()
                         searchDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
-                            if !newValue.isEmpty && musicLibrary.hasAppleMusicAccess {
+                            let trimmedSearch = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if !trimmedSearch.isEmpty && musicLibrary.hasAppleMusicAccess {
                                 Task {
-                                    await musicLibrary.searchAppleMusic(query: newValue)
+                                    await musicLibrary.searchAppleMusic(query: trimmedSearch)
                                 }
-                            } else if newValue.isEmpty {
+                            } else if trimmedSearch.isEmpty {
                                 musicLibrary.clearAppleMusicSearch()
                             }
                         }

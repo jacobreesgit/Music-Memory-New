@@ -36,8 +36,10 @@ class AppleMusicService {
     }
     
     /// Search Apple Music catalog
+    /// Search Apple Music catalog
     func searchMusic(query: String) async -> [Song] {
-        guard hasAccess && !query.isEmpty else {
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard hasAccess && !trimmedQuery.isEmpty else {
             return []
         }
         
@@ -46,7 +48,7 @@ class AppleMusicService {
         }
         
         do {
-            var request = MusicCatalogSearchRequest(term: query, types: [Song.self])
+            var request = MusicCatalogSearchRequest(term: trimmedQuery, types: [Song.self])
             request.limit = 25
             let response = try await request.response()
             let songs = Array(response.songs)

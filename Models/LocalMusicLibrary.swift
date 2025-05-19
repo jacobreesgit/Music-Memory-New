@@ -125,15 +125,17 @@ class LocalMusicLibrary {
         return songLookupCache[key]
     }
     
-    /// Filter local songs by search text
+    /// Filter local songs by search text using fuzzy matching
     func filterSongs(containing searchText: String) -> [MPMediaItem] {
-        if searchText.isEmpty {
+        let trimmedSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        if trimmedSearch.isEmpty {
             return songs
         } else {
             return songs.filter { song in
-                (song.title?.localizedCaseInsensitiveContains(searchText) ?? false) ||
-                (song.artist?.localizedCaseInsensitiveContains(searchText) ?? false) ||
-                (song.albumTitle?.localizedCaseInsensitiveContains(searchText) ?? false)
+                AppHelpers.fuzzyMatch(song.title, trimmedSearch) ||
+                AppHelpers.fuzzyMatch(song.artist, trimmedSearch) ||
+                AppHelpers.fuzzyMatch(song.albumTitle, trimmedSearch)
             }
         }
     }

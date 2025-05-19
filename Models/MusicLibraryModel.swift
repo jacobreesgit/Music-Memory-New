@@ -112,13 +112,14 @@ class MusicLibraryModel: ObservableObject {
     
     /// Search Apple Music catalog
     func searchAppleMusic(query: String) async {
-        guard hasAppleMusicAccess && !query.isEmpty else { return }
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard hasAppleMusicAccess && !trimmedQuery.isEmpty else { return }
         
         await MainActor.run {
             self.isSearchingAppleMusic = true
         }
         
-        let searchResults = await appleMusicService.searchMusic(query: query)
+        let searchResults = await appleMusicService.searchMusic(query: trimmedQuery)
         
         // Sort the results - prioritize songs in the library
         let sortedResults = searchResults.sorted { song1, song2 in
@@ -143,8 +144,8 @@ class MusicLibraryModel: ObservableObject {
             }
             
             // Third priority: Sort by title relevance to query
-            let titleRelevance1 = song1.title.lowercased().contains(query.lowercased())
-            let titleRelevance2 = song2.title.lowercased().contains(query.lowercased())
+            let titleRelevance1 = AppHelpers.fuzzyMatch(song1.title, trimmedQuery)
+            let titleRelevance2 = AppHelpers.fuzzyMatch(song2.title, trimmedQuery)
             
             if titleRelevance1 && !titleRelevance2 {
                 return true
