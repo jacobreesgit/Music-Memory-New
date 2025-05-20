@@ -86,7 +86,7 @@ actor ImageCache {
         
         // Create a new task for loading
         let loadTask = Task<UIImage, Error> { [weak self] in
-            guard let self else {
+            guard let self = self else {
                 throw ImageCacheError.loadingFailed("Self reference lost")
             }
             
@@ -111,16 +111,10 @@ actor ImageCache {
                 }
                 
                 // Store in cache
-                self.setImage(image, for: url)
-                
-                // Remove task from tracking
-                self.loadingTasks[url] = nil
+                await self.setImage(image, for: url)
                 
                 return image
             } catch {
-                // Remove task from tracking
-                self.loadingTasks[url] = nil
-                
                 if error is CancellationError {
                     throw ImageCacheError.cancelled
                 } else {
@@ -129,11 +123,20 @@ actor ImageCache {
             }
         }
         
-        // Track the loading task
+        // Track the loading task (within the actor)
         loadingTasks[url] = loadTask
         
-        // Return the result
-        return try await loadTask.value
+        do {
+            // Return the result
+            let image = try await loadTask.value
+            // Clean up task after completion
+            loadingTasks[url] = nil
+            return image
+        } catch {
+            // Clean up task after error
+            loadingTasks[url] = nil
+            throw error
+        }
     }
     
     /// Prefetch multiple images in parallel using task groups
@@ -194,7 +197,8 @@ struct CachedAsyncImage: View {
         .cornerRadius(Theme.Metrics.cornerRadiusSmall)
         .applyShadow(Theme.Shadows.small)
         .onAppear {
-            loadImage()
+            // Start loading the image when the view appears
+            startImageLoading()
         }
         .onDisappear {
             // Cancel loading if view disappears
@@ -202,25 +206,37 @@ struct CachedAsyncImage: View {
         }
     }
     
-    private func loadImage() {
+    private func startImageLoading() {
         guard let url = url, !isLoading else { return }
         
+        // Set loading state
         isLoading = true
         
+        // Cancel any existing task
+        loadingTask?.cancel()
+        
+        // Create a new task
         loadingTask = Task {
             do {
+                // Explicitly await the async method from ImageCache actor
                 let loadedImage = try await ImageCache.shared.loadImage(from: url)
                 
+                // Check if task is cancelled before updating UI
                 if !Task.isCancelled {
+                    // All UI updates must be on the main actor
                     await MainActor.run {
-                        self.image = loadedImage
-                        self.isLoading = false
+                        withAnimation {
+                            self.image = loadedImage
+                            self.isLoading = false
+                        }
                     }
                 }
             } catch {
+                // Handle error if task was not cancelled
                 if !Task.isCancelled {
-                    print("Error loading image: \(error)")
+                    print("Failed to load image: \(error.localizedDescription)")
                     
+                    // Reset loading state on main thread
                     await MainActor.run {
                         self.isLoading = false
                     }
