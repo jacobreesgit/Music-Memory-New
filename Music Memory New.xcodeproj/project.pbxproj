@@ -35,8 +35,6 @@
 		0751854A2DDB64A2003EE30E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		0751854B2DDB64A2003EE30E /* Music_Memory_NewApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Music_Memory_NewApp.swift; sourceTree = "<group>"; };
 		0751854C2DDB64A2003EE30E /* MusicLibraryModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicLibraryModel.swift; sourceTree = "<group>"; };
-		0751854D2DDB64A2003EE30E /* MusicMemory.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MusicMemory.entitlements; sourceTree = "<group>"; };
-		0751854E2DDB64A2003EE30E /* MusicMemoryWidgetsExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MusicMemoryWidgetsExtension.entitlements; sourceTree = "<group>"; };
 		0751854F2DDB64A2003EE30E /* SongArtworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongArtworkView.swift; sourceTree = "<group>"; };
 		075185502DDB64A2003EE30E /* SongDetailBase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongDetailBase.swift; sourceTree = "<group>"; };
 		075185512DDB64A2003EE30E /* SongDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongDetailView.swift; sourceTree = "<group>"; };
@@ -75,8 +73,6 @@
 				075185472DDB64A2003EE30E /* ContentView.swift */,
 				0751854A2DDB64A2003EE30E /* Info.plist */,
 				0751854B2DDB64A2003EE30E /* Music_Memory_NewApp.swift */,
-				0751854D2DDB64A2003EE30E /* MusicMemory.entitlements */,
-				0751854E2DDB64A2003EE30E /* MusicMemoryWidgetsExtension.entitlements */,
 			);
 			path = App;
 			sourceTree = "<group>";
