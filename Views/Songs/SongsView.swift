@@ -121,13 +121,10 @@ struct SongsView: View {
                     .autocorrectionDisabled(false)
                     .autocapitalization(.none)
                     .onSubmit {
-                        // Only show results when user presses return/search
+                        // Only search when the user presses return
                         submitSearch()
                     }
-                    .onChange(of: searchText) { oldValue, newValue in
-                        // Process in background but don't show results yet
-                        processSearchInBackground(newValue)
-                    }
+                    // No onChange handler - we don't search while typing
                 
                 if !searchText.isEmpty {
                     Button(action: {
@@ -140,84 +137,9 @@ struct SongsView: View {
             }
             .searchBarStyle()
             
-            // Content area
+            // Content area - broken into separate view builders to help compiler
             ScrollView {
-                if isSearching {
-                    // Extended loading indicator while doing expensive computations
-                    VStack(spacing: Theme.Metrics.spacingLarge) {
-                        ProgressView()
-                            .scaleEffect(Theme.Metrics.progressViewScale)
-                        Text("Searching and processing results...")
-                            .font(Theme.Typography.subheadline)
-                            .foregroundColor(Theme.Colors.secondaryText)
-                        Text("This may take a moment for better scrolling performance")
-                            .font(Theme.Typography.caption)
-                            .foregroundColor(Theme.Colors.secondaryText)
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, Theme.Metrics.paddingLarge)
-                } else if isActiveSearch {
-                    // Show combined search results after user presses return
-                    if combinedResults.isEmpty {
-                        // No results found
-                        EmptyStateView(
-                            icon: "magnifyingglass",
-                            title: "No results found",
-                            message: "No matches for '\(searchText)'"
-                        )
-                        .padding(.top, Theme.Metrics.paddingLarge)
-                    } else {
-                        // Combined results list - now optimized for smooth scrolling
-                        LazyVStack(spacing: 0) {
-                            ForEach(Array(sortedCombinedResults.enumerated()), id: \.element.id) { index, result in
-                                Group {
-                                    switch result.type {
-                                    case .localSong(let song):
-                                        NavigationLink(destination: SongDetailView(song: song, rank: index + 1)) {
-                                            OptimizedLocalSongRow(song: song, rank: index + 1)
-                                        }
-                                        
-                                    case .appleMusicSong(let song, let precomputedData):
-                                        NavigationLink(destination: AppleMusicSongDetailView(song: song, rank: index + 1)) {
-                                            OptimizedAppleMusicSongRow(
-                                                song: song,
-                                                rank: index + 1,
-                                                precomputedData: precomputedData
-                                            )
-                                        }
-                                    }
-                                }
-                                .padding(.vertical, Theme.Metrics.spacingTiny)
-                            }
-                        }
-                        .padding(.horizontal, Theme.Metrics.paddingMedium + Theme.Metrics.paddingSmall)
-                        .padding(.top, Theme.Metrics.paddingSmall)
-                    }
-                } else {
-                    // Default view - show library songs
-                    if defaultLibrarySongs.isEmpty {
-                        // Empty library state
-                        EmptyStateView(
-                            icon: "music.note",
-                            title: "No songs found",
-                            message: "Your music library appears to be empty or the app doesn't have permission to access it."
-                        )
-                        .padding(.top, Theme.Metrics.paddingLarge)
-                    } else {
-                        // Show all library songs
-                        LazyVStack(spacing: 0) {
-                            ForEach(Array(defaultLibrarySongs.enumerated()), id: \.element.persistentID) { index, song in
-                                NavigationLink(destination: SongDetailView(song: song, rank: index + 1)) {
-                                    OptimizedLocalSongRow(song: song, rank: index + 1)
-                                }
-                                .padding(.vertical, Theme.Metrics.spacingTiny)
-                            }
-                        }
-                        .padding(.horizontal, Theme.Metrics.paddingMedium + Theme.Metrics.paddingSmall)
-                        .padding(.top, Theme.Metrics.paddingSmall)
-                    }
-                }
+                contentView
             }
         }
         .padding(.top, Theme.Metrics.paddingMedium)
@@ -225,39 +147,7 @@ struct SongsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Menu {
-                    ForEach(SortField.allCases, id: \.self) { field in
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: Theme.Animation.menuDuration)) {
-                                if sortField == field {
-                                    // If same field, toggle direction
-                                    sortDirection.toggle()
-                                } else {
-                                    // If different field, switch to that field and reset to descending
-                                    sortField = field
-                                    sortDirection = .descending
-                                }
-                            }
-                        }) {
-                            HStack {
-                                Label(field.rawValue, systemImage: field.systemImage)
-                                Spacer()
-                                if sortField == field {
-                                    Image(systemName: sortDirection.chevronImage)
-                                        .foregroundColor(Theme.Colors.primary)
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: sortField.systemImage)
-                            .font(.system(size: Theme.FontSizes.regular, weight: .medium))
-                        Image(systemName: sortDirection.chevronImage)
-                            .font(.system(size: Theme.FontSizes.small, weight: .medium))
-                    }
-                    .foregroundColor(Theme.Colors.primary)
-                }
+                sortMenu
             }
         }
         .onAppear {
@@ -265,6 +155,146 @@ struct SongsView: View {
             if musicLibrary.songs.isEmpty && musicLibrary.hasAccess {
                 musicLibrary.requestPermissionAndLoadLibrary()
             }
+        }
+    }
+    
+    // MARK: - View Builders - Breaking down complex views
+    
+    @ViewBuilder
+    private var contentView: some View {
+        if isSearching {
+            loadingView
+        } else if isActiveSearch {
+            searchResultsView
+        } else {
+            libraryView
+        }
+    }
+    
+    @ViewBuilder
+    private var loadingView: some View {
+        // Extended loading indicator while doing expensive computations
+        VStack(spacing: Theme.Metrics.spacingLarge) {
+            ProgressView()
+                // Using fixed value instead of potentially problematic theme value
+                .scaleEffect(1.2)
+            Text("Searching...")
+                .font(Theme.Typography.subheadline)
+                .foregroundColor(Theme.Colors.secondaryText)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, Theme.Metrics.paddingLarge)
+    }
+    
+    @ViewBuilder
+    private var searchResultsView: some View {
+        if combinedResults.isEmpty {
+            // No results found
+            EmptyStateView(
+                icon: "magnifyingglass",
+                title: "No results found",
+                message: "No matches for '\(searchText)'"
+            )
+            .padding(.top, Theme.Metrics.paddingLarge)
+        } else {
+            // Combined results list - using standard SongRowView
+            searchResultsList
+        }
+    }
+    
+    @ViewBuilder
+    private var searchResultsList: some View {
+        LazyVStack(spacing: 0) {
+            ForEach(Array(sortedCombinedResults.enumerated()), id: \.element.id) { index, result in
+                searchResultRow(result: result, index: index)
+                    .padding(.vertical, Theme.Metrics.spacingTiny)
+            }
+        }
+        .padding(.horizontal, Theme.Metrics.paddingMedium + Theme.Metrics.paddingSmall)
+        .padding(.top, Theme.Metrics.paddingSmall)
+    }
+    
+    @ViewBuilder
+    private func searchResultRow(result: SearchResult, index: Int) -> some View {
+        Group {
+            switch result.type {
+            case .localSong(let song):
+                NavigationLink(destination: SongDetailView(song: song, rank: index + 1)) {
+                    SongRowView<MPMediaItem>.create(from: song, rank: index + 1)
+                }
+                
+            case .appleMusicSong(let song, _):
+                NavigationLink(destination: AppleMusicSongDetailView(song: song, rank: index + 1)) {
+                    SongRowView<Song>.create(from: song, rank: index + 1, musicLibrary: musicLibrary)
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var libraryView: some View {
+        if defaultLibrarySongs.isEmpty {
+            // Empty library state
+            EmptyStateView(
+                icon: "music.note",
+                title: "No songs found",
+                message: "Your music library appears to be empty or the app doesn't have permission to access it."
+            )
+            .padding(.top, Theme.Metrics.paddingLarge)
+        } else {
+            // Show all library songs - using standard SongRowView
+            libraryList
+        }
+    }
+    
+    @ViewBuilder
+    private var libraryList: some View {
+        LazyVStack(spacing: 0) {
+            ForEach(Array(defaultLibrarySongs.enumerated()), id: \.element.persistentID) { index, song in
+                NavigationLink(destination: SongDetailView(song: song, rank: index + 1)) {
+                    SongRowView<MPMediaItem>.create(from: song, rank: index + 1)
+                }
+                .padding(.vertical, Theme.Metrics.spacingTiny)
+            }
+        }
+        .padding(.horizontal, Theme.Metrics.paddingMedium + Theme.Metrics.paddingSmall)
+        .padding(.top, Theme.Metrics.paddingSmall)
+    }
+    
+    @ViewBuilder
+    private var sortMenu: some View {
+        Menu {
+            ForEach(SortField.allCases, id: \.self) { field in
+                Button(action: {
+                    withAnimation(.easeInOut(duration: Theme.Animation.menuDuration)) {
+                        if sortField == field {
+                            // If same field, toggle direction
+                            sortDirection.toggle()
+                        } else {
+                            // If different field, switch to that field and reset to descending
+                            sortField = field
+                            sortDirection = .descending
+                        }
+                    }
+                }) {
+                    HStack {
+                        Label(field.rawValue, systemImage: field.systemImage)
+                        Spacer()
+                        if sortField == field {
+                            Image(systemName: sortDirection.chevronImage)
+                                .foregroundColor(Theme.Colors.primary)
+                        }
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: sortField.systemImage)
+                    .font(.system(size: Theme.FontSizes.regular, weight: .medium))
+                Image(systemName: sortDirection.chevronImage)
+                    .font(.system(size: Theme.FontSizes.small, weight: .medium))
+            }
+            .foregroundColor(Theme.Colors.primary)
         }
     }
     
@@ -329,32 +359,7 @@ struct SongsView: View {
         }
     }
     
-    // Process search in background without showing results
-    private func processSearchInBackground(_ query: String) {
-        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        // If search is cleared, reset to default view
-        if trimmedQuery.isEmpty {
-            Task {
-                await musicLibrary.clearAllSearches()
-                
-                await MainActor.run {
-                    isActiveSearch = false
-                    combinedResults = []
-                }
-            }
-            return
-        }
-        
-        // Process Apple Music search in background only if network is available
-        if musicLibrary.hasAppleMusicAccess && networkMonitor.isConnected {
-            Task {
-                await musicLibrary.searchAppleMusic(query: trimmedQuery)
-            }
-        }
-    }
-    
-    // When user presses return/search, show the results with all expensive operations pre-computed
+    // Submit search when return is pressed
     private func submitSearch() {
         let trimmedQuery = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmedQuery.isEmpty {
@@ -363,25 +368,46 @@ struct SongsView: View {
             return
         }
         
-        // Show loading state for longer while doing expensive computations
+        // Show loading state
         isSearching = true
         isActiveSearch = true
         
         Task {
-            // All expensive operations moved to background thread
-            var localMatches: [MPMediaItem] = []
-            var appleMusicSongs: [Song] = []
+            // First cancel any existing searches
+            await musicLibrary.clearAllSearches()
             
             // Get local library matches
-            localMatches = musicLibrary.cachedFilteredSongs(for: trimmedQuery)
+            let localMatches = musicLibrary.cachedFilteredSongs(for: trimmedQuery)
+            var appleMusicSongs: [Song] = []
             
-            // Wait for Apple Music search if available
+            // Start a fresh Apple Music search if we have access
             if musicLibrary.hasAppleMusicAccess && networkMonitor.isConnected {
-                // Wait for Apple Music search to complete
-                while await musicLibrary.isSearchingAppleMusic {
-                    try? await Task.sleep(nanoseconds: Theme.TimeIntervals.searchDebounce) // 100ms
+                // Start the search
+                await musicLibrary.searchAppleMusic(query: trimmedQuery)
+                
+                // Maximum wait time - quit the loop if this is exceeded
+                let startTime = Date()
+                let maxWaitTime: TimeInterval = 3.0
+                
+                // Wait a bit for Apple Music results
+                while musicLibrary.isSearchingAppleMusic {
+                    // Check if we've exceeded max wait time
+                    if Date().timeIntervalSince(startTime) > maxWaitTime {
+                        print("DEBUG: Max wait time exceeded for search: \(trimmedQuery)")
+                        break
+                    }
+                    
+                    // Brief sleep to prevent tight loop
+                    try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+                    
+                    // Break if this task has been cancelled
+                    if Task.isCancelled {
+                        break
+                    }
                 }
-                appleMusicSongs = await musicLibrary.appleMusicSongs
+                
+                // Get the results whether we timed out or not
+                appleMusicSongs = musicLibrary.appleMusicSongs
             }
             
             // Process and combine results
@@ -453,125 +479,6 @@ struct SongsView: View {
         }
         
         return combined
-    }
-}
-
-// Optimized row views that don't do any expensive operations during rendering
-
-struct OptimizedLocalSongRow: View {
-    let song: MPMediaItem
-    let rank: Int
-    
-    var body: some View {
-        HStack(spacing: Theme.Metrics.songRowSpacing) {
-            // Album Artwork first
-            LibraryArtworkView(artwork: song.artwork, size: Theme.Metrics.artworkSizeSmall)
-            
-            // Rank number using theme with dynamic width
-            let rankWidth = rank >= 1000 ? Theme.Metrics.rankWidthExtended : Theme.Metrics.rankWidth
-            Text("\(rank)")
-                .modifier(Theme.Modifiers.RankStyle(color: Theme.Colors.primary, width: rankWidth))
-            
-            // Song info section
-            VStack(alignment: .leading, spacing: Theme.Metrics.songInfoSpacing) {
-                HStack(spacing: Theme.Metrics.badgeSpacing) {
-                    Text(song.title ?? "Unknown")
-                        .font(Theme.Typography.songTitle)
-                        .foregroundColor(Theme.Colors.primaryText)
-                        .lineLimit(1)
-                    
-                    // Explicit badge using theme
-                    if song.isExplicitItem {
-                        Text("E")
-                            .explicitBadgeStyle()
-                    }
-                    
-                    Spacer()
-                }
-                
-                Text(song.artist ?? "Unknown Artist")
-                    .font(Theme.Typography.artistName)
-                    .foregroundColor(Theme.Colors.secondaryText)
-                    .lineLimit(1)
-            }
-            
-            // Play count - no expensive operations
-            VStack(alignment: .trailing, spacing: Theme.Metrics.spacingMicro) {
-                Text("\(song.playCount)")
-                    .font(Theme.Typography.subheadlineBold)
-                    .foregroundColor(Theme.Colors.primary)
-                
-                Text("plays")
-                    .font(Theme.Typography.caption2)
-                    .foregroundColor(Theme.Colors.secondaryText)
-            }
-        }
-        .padding(.vertical, Theme.Metrics.songRowVerticalPadding)
-        .contentShape(Rectangle())
-    }
-}
-
-struct OptimizedAppleMusicSongRow: View {
-    let song: Song
-    let rank: Int
-    let precomputedData: SearchResult.PrecomputedData
-    
-    var body: some View {
-        HStack(spacing: Theme.Metrics.songRowSpacing) {
-            // Album Artwork first
-            AsyncArtworkView.appleMusic(
-                artwork: song.artwork,
-                size: Theme.Metrics.artworkSizeSmall
-            )
-            
-            // Rank number using theme with dynamic width
-            let rankWidth = rank >= 1000 ? Theme.Metrics.rankWidthExtended : Theme.Metrics.rankWidth
-            Text("\(rank)")
-                .modifier(Theme.Modifiers.RankStyle(color: Theme.Colors.appleMusicColor, width: rankWidth))
-            
-            // Song info section
-            VStack(alignment: .leading, spacing: Theme.Metrics.songInfoSpacing) {
-                HStack(spacing: Theme.Metrics.badgeSpacing) {
-                    Text(song.title)
-                        .font(Theme.Typography.songTitle)
-                        .foregroundColor(Theme.Colors.primaryText)
-                        .lineLimit(1)
-                    
-                    // Explicit badge using theme
-                    if song.contentRating == .explicit {
-                        Text("E")
-                            .explicitBadgeStyle()
-                    }
-                    
-                    Spacer()
-                }
-                
-                Text(song.artistName)
-                    .font(Theme.Typography.artistName)
-                    .foregroundColor(Theme.Colors.secondaryText)
-                    .lineLimit(1)
-            }
-            
-            // Use pre-computed play count - no expensive operations during scrolling
-            if let playCount = precomputedData.playCount {
-                VStack(alignment: .trailing, spacing: Theme.Metrics.spacingMicro) {
-                    Text("\(playCount)")
-                        .font(Theme.Typography.subheadlineBold)
-                        .foregroundColor(Theme.Colors.appleMusicColor)
-                    
-                    Text("plays")
-                        .font(Theme.Typography.caption2)
-                        .foregroundColor(Theme.Colors.secondaryText)
-                }
-            } else {
-                // Show Apple Music indicator if not in library
-                Image(systemName: "applelogo")
-                    .font(.system(size: Theme.FontSizes.medium))
-                    .foregroundColor(Theme.Colors.appleMusicColor)
-            }
-        }
-        .padding(.vertical, Theme.Metrics.songRowVerticalPadding)
-        .contentShape(Rectangle())
     }
 }
 
