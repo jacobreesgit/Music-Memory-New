@@ -175,14 +175,14 @@
 			path = Networking;
 			sourceTree = "<group>";
 		};
-		075185BB2DDCE3ED003EE30E /* MVM */ = {
+		075185BB2DDCE3ED003EE30E /* MVVM */ = {
 			isa = PBXGroup;
 			children = (
 				075185BE2DDCE401003EE30E /* ViewModels */,
 				075185BD2DDCE3FB003EE30E /* Models */,
 				075185BC2DDCE3F5003EE30E /* Core */,
 			);
-			path = MVM;
+			path = MVVM;
 			sourceTree = "<group>";
 		};
 		075185BC2DDCE3F5003EE30E /* Core */ = {
@@ -247,7 +247,7 @@
 			isa = PBXGroup;
 			children = (
 				075185BF2DDCE408003EE30E /* Services */,
-				075185BB2DDCE3ED003EE30E /* MVM */,
+				075185BB2DDCE3ED003EE30E /* MVVM */,
 				075185722DDB65BA003EE30E /* Utilities */,
 				0751856E2DDB657F003EE30E /* Views */,
 				0751856D2DDB6572003EE30E /* Models */,
