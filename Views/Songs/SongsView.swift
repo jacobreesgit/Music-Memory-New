@@ -231,7 +231,7 @@ struct SongsView: View {
                 Menu {
                     ForEach(SortField.allCases, id: \.self) { field in
                         Button(action: {
-                            withAnimation(.easeInOut(duration: 0.3)) {
+                            withAnimation(.easeInOut(duration: Theme.Animation.menuDuration)) {
                                 if sortField == field {
                                     // If same field, toggle direction
                                     sortDirection.toggle()
@@ -257,7 +257,7 @@ struct SongsView: View {
                         Image(systemName: sortField.systemImage)
                             .font(.system(size: Theme.FontSizes.regular, weight: .medium))
                         Image(systemName: sortDirection.chevronImage)
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.system(size: Theme.FontSizes.small, weight: .medium))
                     }
                     .foregroundColor(Theme.Colors.primary)
                 }
@@ -370,7 +370,7 @@ struct SongsView: View {
                     group.addTask {
                         // Wait for Apple Music search to complete
                         while musicLibrary.isSearchingAppleMusic {
-                            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+                            try? await Task.sleep(nanoseconds: Theme.TimeIntervals.searchDebounce) // 100ms
                         }
                         appleMusicSongs = musicLibrary.appleMusicSongs
                     }
@@ -484,7 +484,7 @@ struct OptimizedLocalSongRow: View {
             }
             
             // Play count - no expensive operations
-            VStack(alignment: .trailing, spacing: 2) {
+            VStack(alignment: .trailing, spacing: Theme.Metrics.spacingMicro) {
                 Text("\(song.playCount)")
                     .font(Theme.Typography.subheadlineBold)
                     .foregroundColor(Theme.Colors.primary)
@@ -542,7 +542,7 @@ struct OptimizedAppleMusicSongRow: View {
             
             // Use pre-computed play count - no expensive operations during scrolling
             if let playCount = precomputedData.playCount {
-                VStack(alignment: .trailing, spacing: 2) {
+                VStack(alignment: .trailing, spacing: Theme.Metrics.spacingMicro) {
                     Text("\(playCount)")
                         .font(Theme.Typography.subheadlineBold)
                         .foregroundColor(Theme.Colors.appleMusicColor)
@@ -554,7 +554,7 @@ struct OptimizedAppleMusicSongRow: View {
             } else {
                 // Show Apple Music indicator if not in library
                 Image(systemName: "applelogo")
-                    .font(.system(size: 14))
+                    .font(.system(size: Theme.FontSizes.medium))
                     .foregroundColor(Theme.Colors.appleMusicColor)
             }
         }

@@ -79,7 +79,7 @@ struct SongDetailView: View {
                 } else if isSearchingAppleMusic {
                     HStack(spacing: Theme.Metrics.spacingSmall) {
                         ProgressView()
-                            .scaleEffect(0.8)
+                            .scaleEffect(Theme.Metrics.progressViewSmallScale)
                         Text("Finding on Apple Music...")
                             .font(Theme.Typography.body)
                             .foregroundColor(Theme.Colors.secondaryText)

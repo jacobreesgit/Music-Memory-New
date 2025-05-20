@@ -107,7 +107,7 @@ class MusicLibraryModel: ObservableObject {
                     checkLoadingComplete()
                     
                     // Extra safety to prevent endless loading if something goes wrong
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { [weak self] in
+                    DispatchQueue.main.asyncAfter(deadline: .now() + Theme.TimeIntervals.safetyTimeout) { [weak self] in
                         if let self = self, self.isLoading {
                             print("DEBUG: Safety timeout triggered - forcing isLoading to false")
                             self.isLoading = false
@@ -190,7 +190,7 @@ class MusicLibraryModel: ObservableObject {
         // Create a new task for this search
         let task = Task {
             // Add a slight delay to prioritize UI responsiveness
-            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+            try? await Task.sleep(nanoseconds: Theme.TimeIntervals.searchDebounce)
             
             // Check if task is cancelled
             if Task.isCancelled { return }

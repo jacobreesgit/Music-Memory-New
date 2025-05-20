@@ -138,7 +138,7 @@ struct SongRowView<T>: View {
             
             // Simple Apple Music indicator - no expensive library lookups during scrolling
             Image(systemName: "applelogo")
-                .font(.system(size: 14))
+                .font(.system(size: Theme.FontSizes.medium))
                 .foregroundColor(Theme.Colors.appleMusicColor)
         }
         .padding(.vertical, Theme.Metrics.songRowVerticalPadding)

@@ -37,7 +37,7 @@ struct AppleMusicSongDetailView: View {
                                 VStack(spacing: Theme.Metrics.spacingXSmall) {
                                     Image(systemName: "checkmark.circle.fill")
                                         .font(Theme.Typography.title2)
-                                        .foregroundColor(.white)
+                                        .foregroundColor(Theme.Colors.buttonText)
                                         .background(Theme.Colors.inLibrary)
                                         .clipShape(Circle())
                                     
@@ -47,7 +47,7 @@ struct AppleMusicSongDetailView: View {
                                         .padding(.horizontal, Theme.Metrics.paddingSmall)
                                         .padding(.vertical, Theme.Metrics.spacingXSmall)
                                         .background(Theme.Colors.inLibrary)
-                                        .foregroundColor(.white)
+                                        .foregroundColor(Theme.Colors.buttonText)
                                         .cornerRadius(Theme.Metrics.cornerRadiusSmall)
                                 }
                             }
@@ -66,7 +66,7 @@ struct AppleMusicSongDetailView: View {
                     if isLoading {
                         HStack(spacing: Theme.Metrics.spacingSmall) {
                             ProgressView()
-                                .scaleEffect(0.8)
+                                .scaleEffect(Theme.Metrics.progressViewSmallScale)
                             Text("Checking library...")
                                 .font(Theme.Typography.caption)
                                 .foregroundColor(Theme.Colors.secondaryText)

@@ -17,7 +17,7 @@ struct ContentView: View {
             if musicLibrary.isLoading {
                 VStack(spacing: Theme.Metrics.spacingLarge) {
                     ProgressView()
-                        .scaleEffect(1.5)
+                        .scaleEffect(Theme.Metrics.progressViewLargeScale)
                     Text("Loading your music library...")
                         .font(Theme.Typography.subheadlineBold)
                         .foregroundColor(Theme.Colors.secondaryText)

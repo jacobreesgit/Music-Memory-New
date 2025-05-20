@@ -37,6 +37,26 @@ enum Theme {
         // Text colors
         static let primaryText = Color(.label)
         static let secondaryText = Color(.secondaryLabel)
+        static let buttonText = Color.white
+        static let badgeText = Color.secondary
+    }
+    
+    /// Animation values
+    enum Animation {
+        static let buttonPressScale: CGFloat = 0.95
+        static let standardDuration: Double = 0.2
+        static let menuDuration: Double = 0.3
+    }
+    
+    /// Opacity values
+    enum Opacities {
+        static let secondary: Double = 0.2
+    }
+    
+    /// Time intervals for various operations
+    enum TimeIntervals {
+        static let safetyTimeout: Double = 5.0
+        static let searchDebounce: UInt64 = 100_000_000  // 100ms in nanoseconds
     }
     
     /// Typography definitions for the application
@@ -76,6 +96,7 @@ enum Theme {
         static let paddingLarge: CGFloat = 24
         
         // Spacing
+        static let spacingMicro: CGFloat = 2
         static let spacingTiny: CGFloat = 4
         static let spacingXSmall: CGFloat = 4
         static let spacingSmall: CGFloat = 8
@@ -94,8 +115,8 @@ enum Theme {
         static let iconSizeLarge: CGFloat = 32
         static let iconSizeXLarge: CGFloat = 60
         
-        // Updated artwork sizes to match Apple Music
-        static let artworkSizeSmall: CGFloat = 44  // Changed from 50 to 44
+        // Artwork sizes
+        static let artworkSizeSmall: CGFloat = 44
         static let artworkSizeMedium: CGFloat = 100
         static let artworkSizeLarge: CGFloat = 250
         
@@ -104,21 +125,26 @@ enum Theme {
         static let cornerRadiusMedium: CGFloat = 12
         static let cornerRadiusLarge: CGFloat = 16
         
-        // Rank width - sized for different digit counts
-        static let rankWidth: CGFloat = 33  // For ranks 1-999
-        static let rankWidthExtended: CGFloat = 45  // For ranks 1000+
+        // Rank width
+        static let rankWidth: CGFloat = 33
+        static let rankWidthExtended: CGFloat = 45
         
         // Song row heights
         static let songRowVerticalPadding: CGFloat = 8
         static let contextButtonSize: CGFloat = 20
         
-        // Progress view
+        // Progress view scales
+        static let progressViewSmallScale: CGFloat = 0.8
         static let progressViewScale: CGFloat = 1.2
+        static let progressViewLargeScale: CGFloat = 1.5
         
         // Explicit badge
         static let explicitBadgePadding: CGFloat = 4
         static let explicitBadgeVerticalPadding: CGFloat = 1
         static let explicitBadgeCornerRadius: CGFloat = 2
+        
+        // Line weights
+        static let borderLineWidth: CGFloat = 1.5
     }
     
     /// Shadow definitions for depth and elevation
@@ -149,10 +175,10 @@ enum Theme {
                     .padding(.vertical, Metrics.paddingSmall)
                     .padding(.horizontal, Metrics.paddingMedium)
                     .background(Colors.primary)
-                    .foregroundColor(.white)
+                    .foregroundColor(Colors.buttonText)
                     .cornerRadius(Metrics.cornerRadiusMedium)
-                    .scaleEffect(configuration.isPressed ? 0.95 : 1)
-                    .animation(.easeOut(duration: 0.2), value: configuration.isPressed)
+                    .scaleEffect(configuration.isPressed ? Animation.buttonPressScale : 1)
+                    .animation(.easeOut(duration: Animation.standardDuration), value: configuration.isPressed)
             }
         }
         
@@ -165,10 +191,10 @@ enum Theme {
                     .foregroundColor(Colors.primary)
                     .overlay(
                         RoundedRectangle(cornerRadius: Metrics.cornerRadiusMedium)
-                            .stroke(Colors.primary, lineWidth: 1.5)
+                            .stroke(Colors.primary, lineWidth: Metrics.borderLineWidth)
                     )
-                    .scaleEffect(configuration.isPressed ? 0.95 : 1)
-                    .animation(.easeOut(duration: 0.2), value: configuration.isPressed)
+                    .scaleEffect(configuration.isPressed ? Animation.buttonPressScale : 1)
+                    .animation(.easeOut(duration: Animation.standardDuration), value: configuration.isPressed)
             }
         }
         
@@ -199,15 +225,14 @@ enum Theme {
             }
         }
         
-        // New modifier for explicit content badge
         struct ExplicitBadgeStyle: ViewModifier {
             func body(content: Content) -> some View {
                 content
                     .font(Typography.explicitBadge)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Colors.badgeText)
                     .padding(.horizontal, Metrics.explicitBadgePadding)
                     .padding(.vertical, Metrics.explicitBadgeVerticalPadding)
-                    .background(Color.secondary.opacity(0.2))
+                    .background(Colors.badgeText.opacity(Opacities.secondary))
                     .clipShape(RoundedRectangle(cornerRadius: Metrics.explicitBadgeCornerRadius))
             }
         }
