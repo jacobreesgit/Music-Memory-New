@@ -9,6 +9,16 @@ import SwiftUI
 
 /// Central theme definition for the application
 enum Theme {
+    /// Font sizes used throughout the application
+    enum FontSizes {
+        static let tiny: CGFloat = 9
+        static let small: CGFloat = 12
+        static let medium: CGFloat = 14
+        static let regular: CGFloat = 16
+        static let large: CGFloat = 18
+        static let extraLarge: CGFloat = 20
+    }
+    
     /// Color palette for the application
     enum Colors {
         // Main brand colors
@@ -47,21 +57,26 @@ enum Theme {
         static let caption = Font.caption
         static let caption2 = Font.caption2
         
+        // Section headers
+        static let sectionHeader = Font.headline.weight(.semibold)
+        
         // Apple Music style typography
-        static let songTitle = Font.system(size: 16, weight: .regular)
-        static let artistName = Font.system(size: 14, weight: .regular)
-        static let rankNumber = Font.system(size: 16, weight: .medium)
-        static let explicitBadge = Font.system(size: 9, weight: .medium)
+        static let songTitle = Font.system(size: FontSizes.regular, weight: .regular)
+        static let artistName = Font.system(size: FontSizes.medium, weight: .regular)
+        static let rankNumber = Font.system(size: FontSizes.regular, weight: .medium)
+        static let explicitBadge = Font.system(size: FontSizes.tiny, weight: .medium)
     }
     
     /// Layout metrics for consistent spacing, sizing and layout
     enum Metrics {
         // Padding
+        static let paddingTiny: CGFloat = 4
         static let paddingSmall: CGFloat = 8
         static let paddingMedium: CGFloat = 16
         static let paddingLarge: CGFloat = 24
         
         // Spacing
+        static let spacingTiny: CGFloat = 4
         static let spacingXSmall: CGFloat = 4
         static let spacingSmall: CGFloat = 8
         static let spacingMedium: CGFloat = 12
@@ -96,6 +111,9 @@ enum Theme {
         // Song row heights
         static let songRowVerticalPadding: CGFloat = 8
         static let contextButtonSize: CGFloat = 20
+        
+        // Progress view
+        static let progressViewScale: CGFloat = 1.2
         
         // Explicit badge
         static let explicitBadgePadding: CGFloat = 4

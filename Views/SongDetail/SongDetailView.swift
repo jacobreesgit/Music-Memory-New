@@ -65,7 +65,7 @@ struct SongDetailView: View {
                     }) {
                         HStack(spacing: Theme.Metrics.spacingSmall) {
                             Image(systemName: "applelogo")
-                                .font(.system(size: 16, weight: .medium))
+                                .font(.system(size: Theme.FontSizes.regular, weight: .medium))
                             Text("Open in Apple Music")
                                 .font(Theme.Typography.bodyBold)
                         }

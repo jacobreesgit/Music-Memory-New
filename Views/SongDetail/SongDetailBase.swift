@@ -68,7 +68,7 @@ struct SongDetailBase<T, HeaderContent: View, DetailsContent: View>: View {
                 // Song details from caller
                 VStack(alignment: .leading, spacing: 0) {
                     Text("Song Details")
-                        .font(Theme.Typography.bodyBold)
+                        .font(Theme.Typography.sectionHeader)
                         .padding(.bottom, Theme.Metrics.paddingMedium)
                     
                     detailsContent

@@ -149,7 +149,7 @@ struct SongsView: View {
                     // Extended loading indicator while doing expensive computations
                     VStack(spacing: Theme.Metrics.spacingLarge) {
                         ProgressView()
-                            .scaleEffect(1.2)
+                            .scaleEffect(Theme.Metrics.progressViewScale)
                         Text("Searching and processing results...")
                             .font(Theme.Typography.subheadline)
                             .foregroundColor(Theme.Colors.secondaryText)
@@ -191,7 +191,7 @@ struct SongsView: View {
                                         }
                                     }
                                 }
-                                .padding(.vertical, 4)
+                                .padding(.vertical, Theme.Metrics.spacingTiny)
                             }
                         }
                         .padding(.horizontal, Theme.Metrics.paddingMedium + Theme.Metrics.paddingSmall)
@@ -214,7 +214,7 @@ struct SongsView: View {
                                 NavigationLink(destination: SongDetailView(song: song, rank: index + 1)) {
                                     OptimizedLocalSongRow(song: song, rank: index + 1)
                                 }
-                                .padding(.vertical, 4)
+                                .padding(.vertical, Theme.Metrics.spacingTiny)
                             }
                         }
                         .padding(.horizontal, Theme.Metrics.paddingMedium + Theme.Metrics.paddingSmall)
@@ -255,7 +255,7 @@ struct SongsView: View {
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: sortField.systemImage)
-                            .font(.system(size: 16, weight: .medium))
+                            .font(.system(size: Theme.FontSizes.regular, weight: .medium))
                         Image(systemName: sortDirection.chevronImage)
                             .font(.system(size: 12, weight: .medium))
                     }
