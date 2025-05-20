@@ -131,10 +131,7 @@ struct SongsView: View {
                 
                 if !searchText.isEmpty {
                     Button(action: {
-                        searchText = ""
-                        isActiveSearch = false
-                        combinedResults = []
-                        musicLibrary.clearAllSearches()
+                        clearSearch()
                     }) {
                         Image(systemName: "xmark.circle.fill")
                             .iconStyle()
@@ -319,15 +316,33 @@ struct SongsView: View {
     
     // MARK: - Search Logic
     
+    // Clear search and reset state
+    private func clearSearch() {
+        Task {
+            await musicLibrary.clearAllSearches()
+            
+            await MainActor.run {
+                searchText = ""
+                isActiveSearch = false
+                combinedResults = []
+            }
+        }
+    }
+    
     // Process search in background without showing results
     private func processSearchInBackground(_ query: String) {
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         
         // If search is cleared, reset to default view
         if trimmedQuery.isEmpty {
-            isActiveSearch = false
-            combinedResults = []
-            musicLibrary.clearAllSearches()
+            Task {
+                await musicLibrary.clearAllSearches()
+                
+                await MainActor.run {
+                    isActiveSearch = false
+                    combinedResults = []
+                }
+            }
             return
         }
         
@@ -354,41 +369,28 @@ struct SongsView: View {
         
         Task {
             // All expensive operations moved to background thread
-            await withTaskGroup(of: Void.self) { group in
-                var localMatches: [MPMediaItem] = []
-                var appleMusicSongs: [Song] = []
-                
-                // Get local library matches on background thread
-                group.addTask {
-                    localMatches = await Task.detached(priority: .userInitiated) {
-                        return musicLibrary.cachedFilteredSongs(for: trimmedQuery)
-                    }.value
+            var localMatches: [MPMediaItem] = []
+            var appleMusicSongs: [Song] = []
+            
+            // Get local library matches
+            localMatches = musicLibrary.cachedFilteredSongs(for: trimmedQuery)
+            
+            // Wait for Apple Music search if available
+            if musicLibrary.hasAppleMusicAccess && networkMonitor.isConnected {
+                // Wait for Apple Music search to complete
+                while await musicLibrary.isSearchingAppleMusic {
+                    try? await Task.sleep(nanoseconds: Theme.TimeIntervals.searchDebounce) // 100ms
                 }
-                
-                // Wait for Apple Music search if available
-                if musicLibrary.hasAppleMusicAccess && networkMonitor.isConnected {
-                    group.addTask {
-                        // Wait for Apple Music search to complete
-                        while musicLibrary.isSearchingAppleMusic {
-                            try? await Task.sleep(nanoseconds: Theme.TimeIntervals.searchDebounce) // 100ms
-                        }
-                        appleMusicSongs = musicLibrary.appleMusicSongs
-                    }
-                }
-                
-                // Wait for both searches to complete
-                await group.waitForAll()
-                
-                // Now do all expensive processing in background
-                let combined = await Task.detached(priority: .userInitiated) {
-                    await processAndCombineResults(localMatches: localMatches, appleMusicSongs: appleMusicSongs)
-                }.value
-                
-                // Update UI on main thread with pre-computed results
-                await MainActor.run {
-                    combinedResults = combined
-                    isSearching = false
-                }
+                appleMusicSongs = await musicLibrary.appleMusicSongs
+            }
+            
+            // Process and combine results
+            let combined = await processAndCombineResults(localMatches: localMatches, appleMusicSongs: appleMusicSongs)
+            
+            // Update UI on main thread with pre-computed results
+            await MainActor.run {
+                combinedResults = combined
+                isSearching = false
             }
         }
     }
@@ -425,9 +427,19 @@ struct SongsView: View {
                 
                 if !isDuplicate {
                     // Do all expensive operations here during loading
-                    let isInLibrary = musicLibrary.isAppleMusicSongInLibrary(song)
-                    let localSong = isInLibrary ? musicLibrary.getLocalSongMatch(for: song) : nil
-                    let playCount = localSong?.playCount
+                    let isInLibrary = await musicLibrary.isAppleMusicSongInLibrary(song)
+                    let localSong: MPMediaItem? = nil // Will update below if in library
+                    var playCount: Int? = nil
+                    
+                    if isInLibrary {
+                        do {
+                            if let matchedSong = try await musicLibrary.getLocalSongMatch(for: song) {
+                                playCount = matchedSong.playCount
+                            }
+                        } catch {
+                            print("DEBUG: Error getting local song match: \(error)")
+                        }
+                    }
                     
                     let precomputedData = SearchResult.PrecomputedData(
                         isInLibrary: isInLibrary,

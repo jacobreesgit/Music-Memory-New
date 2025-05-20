@@ -10,6 +10,7 @@ import MediaPlayer
 import MusicKit
 
 /// Facade that coordinates the Local Music Library and Apple Music services
+@MainActor
 class MusicLibraryModel: ObservableObject {
     // Services
     private let localLibrary = LocalMusicLibrary()
@@ -35,11 +36,18 @@ class MusicLibraryModel: ObservableObject {
     private var lastSearchText = ""
     
     init() {
-        // Initialize from the services
-        self.authorizationStatus = localLibrary.authorizationStatus
-        self.hasAccess = localLibrary.hasAccess
-        self.appleMusicAuthorizationStatus = appleMusicService.authorizationStatus
-        self.hasAppleMusicAccess = appleMusicService.hasAccess
+        // Initialize with default values, we'll fetch actual values in loadInitialData
+        Task {
+            await loadInitialData()
+        }
+    }
+    
+    private func loadInitialData() async {
+        // Get current authorization statuses
+        self.authorizationStatus = await localLibrary.authorizationStatus
+        self.hasAccess = await localLibrary.hasAccess
+        self.appleMusicAuthorizationStatus = await appleMusicService.authorizationStatus
+        self.hasAppleMusicAccess = await appleMusicService.hasAccess
     }
     
     /// Request permission for both local library and Apple Music
@@ -47,76 +55,77 @@ class MusicLibraryModel: ObservableObject {
         print("DEBUG: Starting permission request and library load")
         isLoading = true
         
-        // First handle local library permissions
-        localLibrary.requestPermission { [weak self] success in
-            guard let self = self else {
-                print("DEBUG: Self is nil in permission completion")
-                return
-            }
-            
-            print("DEBUG: Local library permission result: \(success)")
-            self.hasAccess = success
-            self.authorizationStatus = self.localLibrary.authorizationStatus
-            
-            // Create a helper function to check if we're done loading
-            let checkLoadingComplete = { [weak self] in
-                guard let self = self else { return }
+        Task {
+            // First handle local library permissions
+            do {
+                let success = try await localLibrary.requestPermission()
                 
-                // If we've fetched the local library songs OR we don't have access to local library
-                // AND we've determined Apple Music access (not .notDetermined)
-                if (self.songs.count > 0 || !self.hasAccess) &&
-                   self.appleMusicAuthorizationStatus != .notDetermined {
-                    print("DEBUG: Setting isLoading to false in checkLoadingComplete")
-                    self.isLoading = false
+                print("DEBUG: Local library permission result: \(success)")
+                self.hasAccess = success
+                self.authorizationStatus = await localLibrary.authorizationStatus
+                
+                // Create a helper function to check if we're done loading
+                let checkLoadingComplete = { [weak self] in
+                    guard let self = self else { return }
                     
-                    // Build index for search
-                    self.buildSearchIndex()
-                }
-            }
-            
-            if success {
-                print("DEBUG: Loading local library")
-                self.localLibrary.loadLibrary { [weak self] in
-                    guard let self = self else {
-                        print("DEBUG: Self is nil in loadLibrary completion")
-                        return
+                    // If we've fetched the local library songs OR we don't have access to local library
+                    // AND we've determined Apple Music access (not .notDetermined)
+                    if (self.songs.count > 0 || !self.hasAccess) &&
+                       self.appleMusicAuthorizationStatus != .notDetermined {
+                        print("DEBUG: Setting isLoading to false in checkLoadingComplete")
+                        self.isLoading = false
+                        
+                        // Build index for search
+                        self.buildSearchIndex()
                     }
-                    print("DEBUG: Library loaded with \(self.localLibrary.songs.count) songs")
-                    self.songs = self.localLibrary.songs
+                }
+                
+                if success {
+                    print("DEBUG: Loading local library")
+                    do {
+                        let loadedSongs = try await localLibrary.loadLibrary()
+                        print("DEBUG: Library loaded with \(loadedSongs.count) songs")
+                        self.songs = loadedSongs
+                        checkLoadingComplete()
+                    } catch {
+                        print("DEBUG: Failed to load library: \(error)")
+                        checkLoadingComplete()
+                    }
+                } else {
+                    // If no local library access, we don't need to wait for library loading
+                    print("DEBUG: No local library access, checking if loading is complete")
                     checkLoadingComplete()
                 }
-            } else {
-                // If no local library access, we don't need to wait for library loading
-                print("DEBUG: No local library access, checking if loading is complete")
-                checkLoadingComplete()
-            }
-            
-            // Then handle Apple Music permissions
-            Task { [weak self] in
-                guard let self = self else { return }
-                print("DEBUG: Requesting Apple Music permission")
-                let appleMusicSuccess = await self.appleMusicService.requestPermission()
                 
-                await MainActor.run { [weak self] in
-                    guard let self = self else { return }
+                // Then handle Apple Music permissions
+                do {
+                    print("DEBUG: Requesting Apple Music permission")
+                    let appleMusicSuccess = try await appleMusicService.requestPermission()
+                    
                     print("DEBUG: Apple Music permission result: \(appleMusicSuccess)")
                     self.hasAppleMusicAccess = appleMusicSuccess
-                    self.appleMusicAuthorizationStatus = self.appleMusicService.authorizationStatus
+                    self.appleMusicAuthorizationStatus = await appleMusicService.authorizationStatus
                     
                     // Check again if we're done loading
                     checkLoadingComplete()
-                    
-                    // Extra safety to prevent endless loading if something goes wrong
-                    DispatchQueue.main.asyncAfter(deadline: .now() + Theme.TimeIntervals.safetyTimeout) { [weak self] in
-                        if let self = self, self.isLoading {
-                            print("DEBUG: Safety timeout triggered - forcing isLoading to false")
-                            self.isLoading = false
-                            
-                            // Build index for search even in timeout case
-                            self.buildSearchIndex()
-                        }
+                } catch {
+                    print("DEBUG: Apple Music permission error: \(error)")
+                    checkLoadingComplete()
+                }
+                
+                // Extra safety to prevent endless loading if something goes wrong
+                DispatchQueue.main.asyncAfter(deadline: .now() + Theme.TimeIntervals.safetyTimeout) { [weak self] in
+                    if let self = self, self.isLoading {
+                        print("DEBUG: Safety timeout triggered - forcing isLoading to false")
+                        self.isLoading = false
+                        
+                        // Build index for search even in timeout case
+                        self.buildSearchIndex()
                     }
                 }
+            } catch {
+                print("DEBUG: Permission request error: \(error)")
+                self.isLoading = false
             }
         }
     }
@@ -196,22 +205,31 @@ class MusicLibraryModel: ObservableObject {
             if Task.isCancelled { return }
             
             // Limit search to 15 results instead of 25 for faster response
-            let searchResults = await appleMusicService.searchMusic(query: trimmedQuery, limit: 15)
-            
-            // Check if task is cancelled or if search query has changed
-            if Task.isCancelled { return }
-            
-            await MainActor.run { [weak self] in
-                guard let self = self, self.lastSearchText == trimmedQuery else { return }
+            do {
+                let searchResults = try await appleMusicService.searchMusic(query: trimmedQuery, limit: 15)
                 
-                // Process and sort the results - prioritize songs in the library
-                let sortedResults = self.processSortedResults(searchResults, query: trimmedQuery)
-                self.appleMusicSongs = sortedResults
-                self.isSearchingAppleMusic = false
+                // Check if task is cancelled or if search query has changed
+                if Task.isCancelled { return }
                 
-                // Move precomputing to background
-                Task(priority: .background) {
-                    self.precomputeSongInfo(for: sortedResults)
+                await MainActor.run { [weak self] in
+                    guard let self = self, self.lastSearchText == trimmedQuery else { return }
+                    
+                    // Process and sort the results - prioritize songs in the library
+                    let sortedResults = self.processSortedResults(searchResults, query: trimmedQuery)
+                    self.appleMusicSongs = sortedResults
+                    self.isSearchingAppleMusic = false
+                    
+                    // Move precomputing to background
+                    Task(priority: .background) {
+                        await self.precomputeSongInfo(for: sortedResults)
+                    }
+                }
+            } catch {
+                print("DEBUG: Apple Music search error: \(error)")
+                
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+                    self.isSearchingAppleMusic = false
                 }
             }
         }
@@ -225,23 +243,24 @@ class MusicLibraryModel: ObservableObject {
         // This improves performance by reducing duplicate processing
         let filteredResults = searchResults.filter { song in
             // Check if this exact song is in the library (by ISRC or exact matching)
-            if let localMatch = getExactLocalSongMatch(for: song) {
-                // Update the cache while we're here
-                let key = self.createSongKey(title: song.title, artist: song.artistName, album: song.albumTitle ?? "")
-                songLibraryStatus[key] = true
-                songPlayCounts[key] = localMatch.playCount
-                
-                // Keep songs that are in the library
-                return true
+            Task {
+                if let localMatch = try? await getExactLocalSongMatch(for: song) {
+                    // Update the cache while we're here
+                    let key = self.createSongKey(title: song.title, artist: song.artistName, album: song.albumTitle ?? "")
+                    songLibraryStatus[key] = true
+                    songPlayCounts[key] = localMatch.playCount
+                }
             }
+            
+            // Keep songs that are in the library
             return true
         }
         
         // Sort the results with a faster algorithm
         return filteredResults.sorted { song1, song2 in
             // First priority: Songs in library come first (use cached status when available)
-            let song1InLibrary = isSongInLibraryFast(song1)
-            let song2InLibrary = isSongInLibraryFast(song2)
+            let song1InLibrary = songLibraryStatus[createSongKey(title: song1.title, artist: song1.artistName, album: song1.albumTitle ?? "")] ?? false
+            let song2InLibrary = songLibraryStatus[createSongKey(title: song2.title, artist: song2.artistName, album: song2.albumTitle ?? "")] ?? false
             
             if song1InLibrary && !song2InLibrary {
                 return true
@@ -283,14 +302,24 @@ class MusicLibraryModel: ObservableObject {
             return status
         }
         
-        // Use direct lookup if possible (faster)
-        if let _ = localLibrary.findLocalSong(title: song.title, artist: song.artistName, album: song.albumTitle ?? "") {
-            songLibraryStatus[key] = true
-            return true
+        // Mark as not found initially, will be updated asynchronously
+        songLibraryStatus[key] = false
+        
+        // Queue up a task to update the actual status
+        Task {
+            do {
+                if let _ = try await localLibrary.findLocalSong(title: song.title, artist: song.artistName, album: song.albumTitle ?? "") {
+                    await MainActor.run {
+                        songLibraryStatus[key] = true
+                    }
+                    return true
+                }
+            } catch {
+                print("DEBUG: Error checking if song is in library: \(error)")
+            }
+            return false
         }
         
-        // Not found in fast lookup
-        songLibraryStatus[key] = false
         return false
     }
     
@@ -301,37 +330,43 @@ class MusicLibraryModel: ObservableObject {
     }
     
     /// Clear all search caches and results
-    func clearAllSearches() {
+    func clearAllSearches() async {
         // Cancel any pending search
         currentSearchTask?.cancel()
         currentSearchTask = nil
         
         // Clear Apple Music results
-        appleMusicService.clearSearch()
-        appleMusicSongs = []
+        await appleMusicService.clearSearch()
         
-        // Clear transient caches
-        lastSearchText = ""
-        isSearchingAppleMusic = false
+        await MainActor.run {
+            self.appleMusicSongs = []
+            
+            // Clear transient caches
+            self.lastSearchText = ""
+            self.isSearchingAppleMusic = false
+        }
     }
     
     /// Clear Apple Music search results and caches
-    func clearAppleMusicSearch() {
+    func clearAppleMusicSearch() async {
         // Cancel any pending search
         currentSearchTask?.cancel()
         currentSearchTask = nil
         
         // Clear Apple Music results
-        appleMusicService.clearSearch()
-        appleMusicSongs = []
+        await appleMusicService.clearSearch()
         
-        // Clear Apple Music search state
-        lastSearchText = ""
-        isSearchingAppleMusic = false
+        await MainActor.run {
+            self.appleMusicSongs = []
+            
+            // Clear Apple Music search state
+            self.lastSearchText = ""
+            self.isSearchingAppleMusic = false
+        }
     }
     
     /// Precompute song information to improve scrolling performance
-    private func precomputeSongInfo(for songs: [Song]) {
+    private func precomputeSongInfo(for songs: [Song]) async {
         // Only compute for new songs that aren't already cached
         let songsToProcess = songs.filter { song in
             let key = createSongKey(title: song.title, artist: song.artistName, album: song.albumTitle ?? "")
@@ -348,12 +383,17 @@ class MusicLibraryModel: ObservableObject {
                 let key = createSongKey(title: song.title, artist: song.artistName, album: song.albumTitle ?? "")
                 
                 // Check if song is in library (expensive operation, so we cache it)
-                let inLibrary = isAppleMusicSongInLibrary(song)
-                songLibraryStatus[key] = inLibrary
+                let inLibrary = await isAppleMusicSongInLibrary(song)
+                
+                await MainActor.run {
+                    self.songLibraryStatus[key] = inLibrary
+                }
                 
                 // If in library, cache the play count as well
-                if inLibrary, let localSong = getLocalSongMatch(for: song) {
-                    songPlayCounts[key] = localSong.playCount
+                if inLibrary, let localSong = try? await getLocalSongMatch(for: song) {
+                    await MainActor.run {
+                        self.songPlayCounts[key] = localSong.playCount
+                    }
                 }
             }
         }
@@ -368,10 +408,17 @@ class MusicLibraryModel: ObservableObject {
             return status
         }
         
-        // If not in cache, compute and cache for next time
-        let status = isAppleMusicSongInLibrary(song)
-        songLibraryStatus[key] = status
-        return status
+        // If not in cache, mark as not found initially and update asynchronously
+        songLibraryStatus[key] = false
+        
+        Task {
+            let status = await isAppleMusicSongInLibrary(song)
+            await MainActor.run {
+                self.songLibraryStatus[key] = status
+            }
+        }
+        
+        return false
     }
     
     /// Get cached play count for a song
@@ -381,29 +428,33 @@ class MusicLibraryModel: ObservableObject {
     }
     
     /// Check if an Apple Music song is in the local library with optimized matching
-    func isAppleMusicSongInLibrary(_ appleMusicSong: Song) -> Bool {
+    func isAppleMusicSongInLibrary(_ appleMusicSong: Song) async -> Bool {
         guard hasAccess else { return false }
         
         // First try direct lookup for best performance
-        if let _ = localLibrary.findLocalSong(
-            title: appleMusicSong.title,
-            artist: appleMusicSong.artistName,
-            album: appleMusicSong.albumTitle ?? ""
-        ) {
-            return true
+        do {
+            if let _ = try await localLibrary.findLocalSong(
+                title: appleMusicSong.title,
+                artist: appleMusicSong.artistName,
+                album: appleMusicSong.albumTitle ?? ""
+            ) {
+                return true
+            }
+            
+            // Try with exact match (faster than full search) using ISRC if available
+            if let exactMatch = try await getExactLocalSongMatch(for: appleMusicSong) {
+                return true
+            }
+        } catch {
+            print("DEBUG: Error checking if Apple Music song is in library: \(error)")
         }
         
-        // Try with exact match (faster than full search) using ISRC if available
-        if let exactMatch = getExactLocalSongMatch(for: appleMusicSong) {
-            return true
-        }
-        
-        // Last resort: full search (most expensive)
+        // Not found
         return false
     }
     
     /// Get exact match using ISRC or other identifiers
-    private func getExactLocalSongMatch(for appleMusicSong: Song) -> MPMediaItem? {
+    private func getExactLocalSongMatch(for appleMusicSong: Song) async throws -> MPMediaItem? {
         // Use ISRC for exact matching if available
         if let isrc = appleMusicSong.isrc {
             // This would require adding ISRC indexing to LocalMusicLibrary
@@ -411,7 +462,7 @@ class MusicLibraryModel: ObservableObject {
         }
         
         // Direct lookup
-        return localLibrary.findLocalSong(
+        return try await localLibrary.findLocalSong(
             title: appleMusicSong.title,
             artist: appleMusicSong.artistName,
             album: appleMusicSong.albumTitle ?? ""
@@ -419,11 +470,11 @@ class MusicLibraryModel: ObservableObject {
     }
     
     /// Get the local library song that matches an Apple Music song
-    func getLocalSongMatch(for appleMusicSong: Song) -> MPMediaItem? {
+    func getLocalSongMatch(for appleMusicSong: Song) async throws -> MPMediaItem? {
         guard hasAccess else { return nil }
         
         // Try direct lookup first for better performance
-        let match = localLibrary.findLocalSong(
+        let match = try await localLibrary.findLocalSong(
             title: appleMusicSong.title,
             artist: appleMusicSong.artistName,
             album: appleMusicSong.albumTitle ?? ""
@@ -434,17 +485,27 @@ class MusicLibraryModel: ObservableObject {
         }
         
         // Fall back to full search if not in cache
-        return localLibrary.songs.first { localSong in
-            let titleMatch = localLibrary.normalizeString(localSong.title) == localLibrary.normalizeString(appleMusicSong.title)
-            let artistMatch = localLibrary.normalizeString(localSong.artist) == localLibrary.normalizeString(appleMusicSong.artistName)
+        let songs = await localLibrary.songs
+        let normalizedTitle = try await localLibrary.normalizeString(appleMusicSong.title)
+        let normalizedArtistName = try await localLibrary.normalizeString(appleMusicSong.artistName)
+        
+        for localSong in songs {
+            let localTitle = try await localLibrary.normalizeString(localSong.title)
+            let localArtist = try await localLibrary.normalizeString(localSong.artist)
             
-            // Only proceed if title and artist match
-            return titleMatch && artistMatch
+            if localTitle == normalizedTitle && localArtist == normalizedArtistName {
+                return localSong
+            }
         }
+        
+        return nil
     }
     
     /// Helper function to create a consistent key for a song
     func createSongKey(title: String, artist: String, album: String) -> String {
-        return localLibrary.createSongKey(title: title, artist: artist, album: album)
+        // Create a simplified version since we can't call the actor method directly
+        return "\(title.lowercased())|\(artist.lowercased())|\(album.lowercased())"
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "  ", with: " ")
     }
 }

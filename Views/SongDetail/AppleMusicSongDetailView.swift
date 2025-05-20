@@ -180,25 +180,38 @@ struct AppleMusicSongDetailView: View {
     private func checkLibraryStatus() {
         isLoading = true
         
-        // Perform library check in background
-        Task.detached(priority: .userInitiated) {
-            let inLibrary = musicLibrary.isSongInLibrary(song)
-            let localMatch = inLibrary ? musicLibrary.getLocalSongMatch(for: song) : nil
-            
-            // Filter out uploaded songs from the match
-            let filteredMatch: MPMediaItem?
-            if let match = localMatch {
-                // Don't consider uploaded songs as "in library" for Apple Music purposes
-                let isUploaded = match.isCloudItem && !match.hasProtectedAsset && match.assetURL == nil
-                filteredMatch = isUploaded ? nil : match
-            } else {
-                filteredMatch = nil
-            }
-            
-            await MainActor.run {
-                self.isInLibrary = filteredMatch != nil
-                self.localSongMatch = filteredMatch
-                self.isLoading = false
+        // Perform library check in background using Task
+        Task {
+            do {
+                let inLibrary = await musicLibrary.isSongInLibrary(song)
+                
+                // Only try to get local match if song is in library
+                let localMatch = inLibrary ? try await musicLibrary.getLocalSongMatch(for: song) : nil
+                
+                // Filter out uploaded songs from the match
+                let filteredMatch: MPMediaItem?
+                if let match = localMatch {
+                    // Don't consider uploaded songs as "in library" for Apple Music purposes
+                    let isUploaded = match.isCloudItem && !match.hasProtectedAsset && match.assetURL == nil
+                    filteredMatch = isUploaded ? nil : match
+                } else {
+                    filteredMatch = nil
+                }
+                
+                await MainActor.run {
+                    self.isInLibrary = filteredMatch != nil
+                    self.localSongMatch = filteredMatch
+                    self.isLoading = false
+                }
+            } catch {
+                print("DEBUG: Error checking library status: \(error)")
+                
+                // Handle error by updating UI
+                await MainActor.run {
+                    self.isInLibrary = false
+                    self.localSongMatch = nil
+                    self.isLoading = false
+                }
             }
         }
     }
