@@ -45,6 +45,20 @@
 		075185792DDB67F8003EE30E /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		0751857B2DDB6807003EE30E /* SongRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongRowView.swift; sourceTree = "<group>"; };
 		075185822DDBADED003EE30E /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
+		075185C22DDCE426003EE30E /* BaseViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BaseViewModel.swift; sourceTree = "<group>"; };
+		075185C32DDCE430003EE30E /* ViewState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewState.swift; sourceTree = "<group>"; };
+		075185C42DDCE43A003EE30E /* DependencyContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DependencyContainer.swift; sourceTree = "<group>"; };
+		075185C52DDCE452003EE30E /* BindingUtilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BindingUtilities.swift; sourceTree = "<group>"; };
+		075185C62DDCE461003EE30E /* NetworkMonitorProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitorProtocol.swift; sourceTree = "<group>"; };
+		075185C72DDCE46A003EE30E /* MusicLibraryServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicLibraryServiceProtocol.swift; sourceTree = "<group>"; };
+		075185C82DDCE483003EE30E /* AppleMusicServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicServiceProtocol.swift; sourceTree = "<group>"; };
+		075185C92DDCE4B8003EE30E /* SongsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongsViewModel.swift; sourceTree = "<group>"; };
+		075185CA2DDCE4CD003EE30E /* SearchResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchResult.swift; sourceTree = "<group>"; };
+		075185CB2DDCE4E8003EE30E /* MusicLibraryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicLibraryService.swift; sourceTree = "<group>"; };
+		075185CC2DDCE50A003EE30E /* AppleMusicService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicService.swift; sourceTree = "<group>"; };
+		075185CD2DDCE514003EE30E /* NetworkMonitorService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitorService.swift; sourceTree = "<group>"; };
+		075185CE2DDCE51D003EE30E /* SongDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongDetailViewModel.swift; sourceTree = "<group>"; };
+		075185CF2DDCE529003EE30E /* AppleMusicSongDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicSongDetailViewModel.swift; sourceTree = "<group>"; };
 		077595712DDA5D1E008EAD9A /* Music Memory New.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Music Memory New.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -161,9 +175,79 @@
 			path = Networking;
 			sourceTree = "<group>";
 		};
+		075185BB2DDCE3ED003EE30E /* MVM */ = {
+			isa = PBXGroup;
+			children = (
+				075185BE2DDCE401003EE30E /* ViewModels */,
+				075185BD2DDCE3FB003EE30E /* Models */,
+				075185BC2DDCE3F5003EE30E /* Core */,
+			);
+			path = MVM;
+			sourceTree = "<group>";
+		};
+		075185BC2DDCE3F5003EE30E /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				075185C52DDCE452003EE30E /* BindingUtilities.swift */,
+				075185C42DDCE43A003EE30E /* DependencyContainer.swift */,
+				075185C32DDCE430003EE30E /* ViewState.swift */,
+				075185C22DDCE426003EE30E /* BaseViewModel.swift */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		075185BD2DDCE3FB003EE30E /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				075185CA2DDCE4CD003EE30E /* SearchResult.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		075185BE2DDCE401003EE30E /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				075185CF2DDCE529003EE30E /* AppleMusicSongDetailViewModel.swift */,
+				075185CE2DDCE51D003EE30E /* SongDetailViewModel.swift */,
+				075185C92DDCE4B8003EE30E /* SongsViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		075185BF2DDCE408003EE30E /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				075185C12DDCE418003EE30E /* Implementations */,
+				075185C02DDCE40E003EE30E /* Protocols */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		075185C02DDCE40E003EE30E /* Protocols */ = {
+			isa = PBXGroup;
+			children = (
+				075185C82DDCE483003EE30E /* AppleMusicServiceProtocol.swift */,
+				075185C72DDCE46A003EE30E /* MusicLibraryServiceProtocol.swift */,
+				075185C62DDCE461003EE30E /* NetworkMonitorProtocol.swift */,
+			);
+			path = Protocols;
+			sourceTree = "<group>";
+		};
+		075185C12DDCE418003EE30E /* Implementations */ = {
+			isa = PBXGroup;
+			children = (
+				075185CD2DDCE514003EE30E /* NetworkMonitorService.swift */,
+				075185CC2DDCE50A003EE30E /* AppleMusicService.swift */,
+				075185CB2DDCE4E8003EE30E /* MusicLibraryService.swift */,
+			);
+			path = Implementations;
+			sourceTree = "<group>";
+		};
 		077595682DDA5D1E008EAD9A = {
 			isa = PBXGroup;
 			children = (
+				075185BF2DDCE408003EE30E /* Services */,
+				075185BB2DDCE3ED003EE30E /* MVM */,
 				075185722DDB65BA003EE30E /* Utilities */,
 				0751856E2DDB657F003EE30E /* Views */,
 				0751856D2DDB6572003EE30E /* Models */,
