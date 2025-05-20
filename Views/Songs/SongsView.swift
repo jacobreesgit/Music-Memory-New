@@ -44,6 +44,49 @@ struct SearchResult: Identifiable {
             return data.isInLibrary
         }
     }
+    
+    // Helper for sorting
+    var title: String {
+        switch type {
+        case .localSong(let song):
+            return song.title ?? "Unknown"
+        case .appleMusicSong(let song, _):
+            return song.title
+        }
+    }
+}
+
+// Sorting field and direction
+enum SortField: String, CaseIterable {
+    case playCount = "Play Count"
+    case title = "Title"
+    
+    var systemImage: String {
+        switch self {
+        case .playCount:
+            return "play.circle"
+        case .title:
+            return "textformat.abc"
+        }
+    }
+}
+
+enum SortDirection: String {
+    case ascending = "asc"
+    case descending = "desc"
+    
+    var chevronImage: String {
+        switch self {
+        case .ascending:
+            return "chevron.up"
+        case .descending:
+            return "chevron.down"
+        }
+    }
+    
+    mutating func toggle() {
+        self = self == .ascending ? .descending : .ascending
+    }
 }
 
 struct SongsView: View {
@@ -53,10 +96,17 @@ struct SongsView: View {
     @State private var isActiveSearch = false
     @State private var isSearching = false
     @State private var combinedResults: [SearchResult] = []
+    @State private var sortField: SortField = .playCount
+    @State private var sortDirection: SortDirection = .descending
     
-    // Default view shows all library songs
+    // Default view shows all library songs (sorted)
     private var defaultLibrarySongs: [MPMediaItem] {
-        return musicLibrary.songs
+        return sortLocalSongs(musicLibrary.songs)
+    }
+    
+    // Sorted combined results
+    private var sortedCombinedResults: [SearchResult] {
+        return sortCombinedResults(combinedResults)
     }
     
     var body: some View {
@@ -123,7 +173,7 @@ struct SongsView: View {
                     } else {
                         // Combined results list - now optimized for smooth scrolling
                         LazyVStack(spacing: 0) {
-                            ForEach(Array(combinedResults.enumerated()), id: \.element.id) { index, result in
+                            ForEach(Array(sortedCombinedResults.enumerated()), id: \.element.id) { index, result in
                                 Group {
                                     switch result.type {
                                     case .localSong(let song):
@@ -176,6 +226,43 @@ struct SongsView: View {
         .padding(.top, Theme.Metrics.paddingMedium)
         .navigationTitle("Songs")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Menu {
+                    ForEach(SortField.allCases, id: \.self) { field in
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                if sortField == field {
+                                    // If same field, toggle direction
+                                    sortDirection.toggle()
+                                } else {
+                                    // If different field, switch to that field and reset to descending
+                                    sortField = field
+                                    sortDirection = .descending
+                                }
+                            }
+                        }) {
+                            HStack {
+                                Label(field.rawValue, systemImage: field.systemImage)
+                                Spacer()
+                                if sortField == field {
+                                    Image(systemName: sortDirection.chevronImage)
+                                        .foregroundColor(Theme.Colors.primary)
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: sortField.systemImage)
+                            .font(.system(size: 16, weight: .medium))
+                        Image(systemName: sortDirection.chevronImage)
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .foregroundColor(Theme.Colors.primary)
+                }
+            }
+        }
         .onAppear {
             // Refresh library when view appears
             if musicLibrary.songs.isEmpty && musicLibrary.hasAccess {
@@ -183,6 +270,54 @@ struct SongsView: View {
             }
         }
     }
+    
+    // MARK: - Sorting Logic
+    
+    private func sortLocalSongs(_ songs: [MPMediaItem]) -> [MPMediaItem] {
+        switch sortField {
+        case .playCount:
+            return songs.sorted { song1, song2 in
+                if song1.playCount == song2.playCount {
+                    return (song1.title ?? "") < (song2.title ?? "")
+                }
+                return sortDirection == .descending ?
+                    song1.playCount > song2.playCount :
+                    song1.playCount < song2.playCount
+            }
+        case .title:
+            return songs.sorted { song1, song2 in
+                let title1 = song1.title ?? ""
+                let title2 = song2.title ?? ""
+                return sortDirection == .descending ?
+                    title1 > title2 :
+                    title1 < title2
+            }
+        }
+    }
+    
+    private func sortCombinedResults(_ results: [SearchResult]) -> [SearchResult] {
+        switch sortField {
+        case .playCount:
+            return results.sorted { result1, result2 in
+                let playCount1 = result1.playCount ?? 0
+                let playCount2 = result2.playCount ?? 0
+                if playCount1 == playCount2 {
+                    return result1.title < result2.title
+                }
+                return sortDirection == .descending ?
+                    playCount1 > playCount2 :
+                    playCount1 < playCount2
+            }
+        case .title:
+            return results.sorted { result1, result2 in
+                return sortDirection == .descending ?
+                    result1.title > result2.title :
+                    result1.title < result2.title
+            }
+        }
+    }
+    
+    // MARK: - Search Logic
     
     // Process search in background without showing results
     private func processSearchInBackground(_ query: String) {

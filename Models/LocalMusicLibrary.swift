@@ -83,12 +83,9 @@ class LocalMusicLibrary {
             var loadedSongs: [MPMediaItem] = []
             
             if let allSongs = songsQuery.items {
-                loadedSongs = allSongs.sorted { song1, song2 in
-                    if song1.playCount == song2.playCount {
-                        return (song1.title ?? "") < (song2.title ?? "")
-                    }
-                    return song1.playCount > song2.playCount
-                }
+                // Don't sort here - keep original order from the system
+                // All sorting will be handled in the UI layer
+                loadedSongs = allSongs
             }
             
             DispatchQueue.main.async { [weak self] in
