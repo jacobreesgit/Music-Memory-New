@@ -33,15 +33,7 @@ struct MusicMemoryApp: App {
                 } else {
                     SetupView(tracker: tracker)
                         .onReceive(tracker.$isSeeding) { isSeeding in
-                            // Check if setup is complete
-                            let hasPermission = MPMediaLibrary.authorizationStatus() == .authorized
-                            let hasSeeded = UserDefaults.standard.bool(forKey: "hasSeededLibrary")
-                            
-                            if hasPermission && hasSeeded && !isSeeding {
-                                withAnimation(.easeInOut(duration: 0.5)) {
-                                    isSetupComplete = true
-                                }
-                            }
+                            checkAndUpdateSetupStatus(isSeeding: isSeeding)
                         }
                         .transition(.opacity)
                 }
@@ -61,13 +53,34 @@ struct MusicMemoryApp: App {
         let hasSeeded = UserDefaults.standard.bool(forKey: "hasSeededLibrary")
         
         isSetupComplete = hasPermission && hasSeeded
+        
+        print("🔍 Setup check - Permission: \(hasPermission), Seeded: \(hasSeeded), Complete: \(isSetupComplete)")
+    }
+    
+    private func checkAndUpdateSetupStatus(isSeeding: Bool) {
+        print("🔄 Seeding status changed: \(isSeeding)")
+        
+        // Add a small delay to ensure UserDefaults has been written
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            let hasPermission = MPMediaLibrary.authorizationStatus() == .authorized
+            let hasSeeded = UserDefaults.standard.bool(forKey: "hasSeededLibrary")
+            
+            print("🔍 Post-seeding check - Permission: \(hasPermission), Seeded: \(hasSeeded), IsSeeding: \(isSeeding)")
+            
+            if hasPermission && hasSeeded && !isSeeding {
+                print("✅ Setup complete - transitioning to main app")
+                withAnimation(.easeInOut(duration: 0.5)) {
+                    isSetupComplete = true
+                }
+            }
+        }
     }
     
     private func requestMusicLibraryAccess() {
         MPMediaLibrary.requestAuthorization { status in
             DispatchQueue.main.async {
-                // The SetupView will handle the state changes
-                print("Permission status: \(status)")
+                print("🎵 Permission status updated: \(status)")
+                checkIfSetupComplete()
             }
         }
     }
@@ -82,6 +95,9 @@ struct ContentView: View {
             
             NowPlayingBar(tracker: tracker)
                 .padding(.bottom, 20)
+        }
+        .onAppear {
+            print("📱 ContentView appeared")
         }
     }
 }

@@ -13,11 +13,7 @@ struct SetupView: View {
         case .denied, .restricted:
             return .permissionDenied
         case .authorized:
-            if hasSeededLibrary && !tracker.isSeeding {
-                return .completed
-            } else {
-                return .seeding
-            }
+            return .seeding
         @unknown default:
             return .waitingForPermission
         }
@@ -44,8 +40,6 @@ struct SetupView: View {
                     deniedContent
                 case .seeding:
                     seedingContent
-                case .completed:
-                    EmptyView() // This state shouldn't be visible
                 }
                 
                 Spacer()
@@ -60,10 +54,7 @@ struct SetupView: View {
             }
         }
         .onReceive(tracker.$isSeeding) { isSeeding in
-            if !isSeeding && tracker.seedingProgress >= 1.0 {
-                UserDefaults.standard.set(true, forKey: "hasSeededLibrary")
-                hasSeededLibrary = true
-            }
+            handleSeedingChange(isSeeding: isSeeding)
         }
     }
     
@@ -87,9 +78,6 @@ struct SetupView: View {
             Image(systemName: "music.note.house")
                 .font(.system(size: 60))
                 .foregroundColor(.accentColor)
-                
-        case .completed:
-            EmptyView()
         }
     }
     
@@ -239,7 +227,7 @@ struct SetupView: View {
         }
         .onAppear {
             // Start seeding when this view appears
-            if !tracker.isSeeding {
+            if !tracker.isSeeding && !hasSeededLibrary {
                 Task {
                     await tracker.seedLibrary()
                 }
@@ -273,6 +261,17 @@ struct SetupView: View {
             }
         }
     }
+    
+    private func handleSeedingChange(isSeeding: Bool) {
+        if !isSeeding && tracker.seedingProgress >= 1.0 {
+            print("🌱 Seeding completed, updating UserDefaults")
+            UserDefaults.standard.set(true, forKey: "hasSeededLibrary")
+            UserDefaults.standard.synchronize() // Force immediate write
+            hasSeededLibrary = true
+            
+            print("🔄 Setup complete - ready for transition")
+        }
+    }
 }
 
 // MARK: - Setup States
@@ -281,5 +280,4 @@ enum SetupState {
     case waitingForPermission
     case permissionDenied
     case seeding
-    case completed
 }
