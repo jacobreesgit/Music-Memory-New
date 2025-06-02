@@ -6,6 +6,7 @@ struct ChartView: View {
     @ObservedObject var tracker: NowPlayingTracker
     @State private var timeFilter: TimeFilter = .allTime
     @State private var songs: [TrackedSong] = []
+    @State private var isPerformingMaintenance = false
     
     enum TimeFilter: String, CaseIterable {
         case allTime = "All Time"
@@ -63,6 +64,25 @@ struct ChartView: View {
             }
             .navigationTitle("Music Memory")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        Task {
+                            isPerformingMaintenance = true
+                            await tracker.performMaintenance()
+                            isPerformingMaintenance = false
+                        }
+                    }) {
+                        if isPerformingMaintenance {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        } else {
+                            Image(systemName: "trash.circle")
+                        }
+                    }
+                    .disabled(isPerformingMaintenance)
+                }
+            }
             .onAppear {
                 fetchSongs()
             }
@@ -132,10 +152,9 @@ struct ChartRow: View {
                 .foregroundColor(.secondary)
                 .frame(width: 50, alignment: .leading)
             
-            // Album artwork
-            if let artworkData = song.albumArtworkData,
-               let uiImage = UIImage(data: artworkData) {
-                Image(uiImage: uiImage)
+            // Album artwork - Updated to use file system
+            if let artwork = song.albumArtwork {
+                Image(uiImage: artwork)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 60, height: 60)
@@ -170,7 +189,7 @@ struct ChartRow: View {
                     
                     Spacer()
                     
-                    // Rank movement - Fixed to use Color directly
+                    // Rank movement
                     Text(song.rankMovement.symbol)
                         .font(.caption.bold())
                         .foregroundColor(song.rankMovement.color)

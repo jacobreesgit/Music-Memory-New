@@ -6,7 +6,7 @@ import MediaPlayer
 struct MusicMemoryApp: App {
     let container: ModelContainer
     @StateObject private var tracker: NowPlayingTracker
-    @State private var hasSeededLibrary = UserDefaults.standard.bool(forKey: "hasSeededLibrary")
+    @State private var isSetupComplete = false
     
     init() {
         do {
@@ -24,35 +24,50 @@ struct MusicMemoryApp: App {
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environmentObject(tracker)
-                .modelContainer(container)
-                .onAppear {
+            ZStack {
+                if isSetupComplete {
+                    ContentView()
+                        .environmentObject(tracker)
+                        .modelContainer(container)
+                        .transition(.opacity)
+                } else {
+                    SetupView(tracker: tracker)
+                        .onReceive(tracker.$isSeeding) { isSeeding in
+                            // Check if setup is complete
+                            let hasPermission = MPMediaLibrary.authorizationStatus() == .authorized
+                            let hasSeeded = UserDefaults.standard.bool(forKey: "hasSeededLibrary")
+                            
+                            if hasPermission && hasSeeded && !isSeeding {
+                                withAnimation(.easeInOut(duration: 0.5)) {
+                                    isSetupComplete = true
+                                }
+                            }
+                        }
+                        .transition(.opacity)
+                }
+            }
+            .onAppear {
+                checkIfSetupComplete()
+                // Auto-request permission if needed
+                if MPMediaLibrary.authorizationStatus() == .notDetermined {
                     requestMusicLibraryAccess()
                 }
+            }
         }
+    }
+    
+    private func checkIfSetupComplete() {
+        let hasPermission = MPMediaLibrary.authorizationStatus() == .authorized
+        let hasSeeded = UserDefaults.standard.bool(forKey: "hasSeededLibrary")
+        
+        isSetupComplete = hasPermission && hasSeeded
     }
     
     private func requestMusicLibraryAccess() {
         MPMediaLibrary.requestAuthorization { status in
-            switch status {
-            case .authorized:
-                print("✅ Music library access authorized")
-                if !hasSeededLibrary {
-                    Task {
-                        await tracker.seedLibrary()
-                        UserDefaults.standard.set(true, forKey: "hasSeededLibrary")
-                        hasSeededLibrary = true
-                    }
-                }
-            case .denied:
-                print("❌ Music library access denied")
-            case .restricted:
-                print("⚠️ Music library access restricted")
-            case .notDetermined:
-                print("❓ Music library access not determined")
-            @unknown default:
-                print("❓ Unknown music library authorization status")
+            DispatchQueue.main.async {
+                // The SetupView will handle the state changes
+                print("Permission status: \(status)")
             }
         }
     }

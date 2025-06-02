@@ -10,6 +10,14 @@ class NowPlayingTracker: ObservableObject {
     @Published var isPlaying: Bool = false
     @Published var currentSystemItem: MPMediaItem?
     
+    // Seeding progress tracking
+    @Published var isSeeding: Bool = false
+    @Published var seedingProgress: Double = 0.0
+    @Published var currentSongIndex: Int = 0
+    @Published var totalSongsToProcess: Int = 0
+    @Published var currentProcessingSong: String = ""
+    @Published var estimatedTimeRemaining: Int = 0
+    
     private let musicPlayer = MPMusicPlayerController.systemMusicPlayer
     private var cancellables = Set<AnyCancellable>()
     private var modelContext: ModelContext
@@ -21,6 +29,11 @@ class NowPlayingTracker: ObservableObject {
         setupObservers()
         requestNotificationPermission()
         updateCurrentSong()
+        
+        // Cleanup old data periodically
+        Task {
+            await performMaintenanceIfNeeded()
+        }
     }
     
     private func setupObservers() {
@@ -50,7 +63,7 @@ class NowPlayingTracker: ObservableObject {
         
         // Check if previous song completed
         if let previousItem = previousItem {
-            let previousSongID = previousItem.persistentID  // Fixed: No need for conditional cast
+            let previousSongID = previousItem.persistentID
             
             let currentPlayCount = previousItem.playCount
             if currentPlayCount > previousPlayCount {
@@ -78,7 +91,7 @@ class NowPlayingTracker: ObservableObject {
             return
         }
         
-        let persistentID = nowPlayingItem.persistentID  // Fixed: Direct assignment
+        let persistentID = nowPlayingItem.persistentID
         currentSystemItem = nowPlayingItem
         
         let descriptor = FetchDescriptor<TrackedSong>(
@@ -215,16 +228,41 @@ class NowPlayingTracker: ObservableObject {
     func seedLibrary() async {
         print("🌱 Starting library seed...")
         
+        isSeeding = true
+        seedingProgress = 0.0
+        currentSongIndex = 0
+        currentProcessingSong = ""
+        estimatedTimeRemaining = 0
+        
         let query = MPMediaQuery.songs()
         guard let items = query.items else {
             print("❌ No songs found in library")
+            isSeeding = false
             return
         }
         
+        totalSongsToProcess = items.count
         print("📚 Found \(items.count) songs in library")
         
-        for item in items {
-            let persistentID = item.persistentID  // Fixed: Direct assignment
+        let startTime = Date()
+        var processedCount = 0
+        
+        for (index, item) in items.enumerated() {
+            currentSongIndex = index + 1
+            currentProcessingSong = "\(item.artist ?? "Unknown Artist") - \(item.title ?? "Unknown Title")"
+            
+            // Update progress
+            seedingProgress = Double(index) / Double(items.count)
+            
+            // Calculate estimated time remaining
+            if index > 10 { // Start estimating after processing a few songs
+                let elapsedTime = Date().timeIntervalSince(startTime)
+                let averageTimePerSong = elapsedTime / Double(index)
+                let remainingSongs = items.count - index
+                estimatedTimeRemaining = Int(averageTimePerSong * Double(remainingSongs))
+            }
+            
+            let persistentID = item.persistentID
             
             // Check if song already exists
             let descriptor = FetchDescriptor<TrackedSong>(
@@ -239,11 +277,11 @@ class NowPlayingTracker: ObservableObject {
                     continue // Skip if already tracked
                 }
                 
-                // Extract album artwork
-                var artworkData: Data?
+                // Save album artwork to file system
+                var artworkFileName: String?
                 if let artwork = item.artwork,
-                   let image = artwork.image(at: CGSize(width: 100, height: 100)) {
-                    artworkData = image.pngData()
+                   let image = artwork.image(at: CGSize(width: 300, height: 300)) {
+                    artworkFileName = ArtworkManager.shared.save(artwork: image, for: persistentID)
                 }
                 
                 // Create new tracked song
@@ -252,23 +290,139 @@ class NowPlayingTracker: ObservableObject {
                     title: item.title ?? "Unknown Title",
                     artist: item.artist ?? "Unknown Artist",
                     albumTitle: item.albumTitle,
-                    albumArtworkData: artworkData,
+                    artworkFileName: artworkFileName,
                     baselinePlayCount: item.playCount
                 )
                 
                 modelContext.insert(trackedSong)
+                processedCount += 1
                 print("➕ Added: \(trackedSong.title) by \(trackedSong.artist)")
+                
+                // Save every 50 songs to avoid memory issues
+                if processedCount % 50 == 0 {
+                    try modelContext.save()
+                }
                 
             } catch {
                 print("❌ Error checking/adding song: \(error)")
             }
+            
+            // Small delay to allow UI updates and prevent blocking
+            if index % 10 == 0 {
+                try? await Task.sleep(nanoseconds: 10_000_000) // 0.01 seconds
+            }
         }
+        
+        // Final progress update
+        seedingProgress = 1.0
+        currentProcessingSong = "Completing setup..."
         
         do {
             try modelContext.save()
-            print("✅ Library seed completed")
+            print("✅ Library seed completed - Added \(processedCount) new songs")
         } catch {
             print("❌ Error saving seeded library: \(error)")
+        }
+        
+        // Short delay to show completion
+        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+        
+        isSeeding = false
+    }
+    
+    // MARK: - Maintenance and Cleanup
+    
+    private func performMaintenanceIfNeeded() async {
+        let lastMaintenance = UserDefaults.standard.object(forKey: "lastMaintenanceDate") as? Date ?? Date.distantPast
+        let daysSinceLastMaintenance = Calendar.current.dateComponents([.day], from: lastMaintenance, to: Date()).day ?? 0
+        
+        if daysSinceLastMaintenance >= 7 { // Weekly maintenance
+            await performMaintenance()
+            UserDefaults.standard.set(Date(), forKey: "lastMaintenanceDate")
+        }
+    }
+    
+    func performMaintenance() async {
+        print("🧹 Starting database maintenance...")
+        
+        // 1. Clean up old play events (keep only last 6 months)
+        await cleanupOldPlayEvents()
+        
+        // 2. Clean up orphaned artwork files
+        await cleanupOrphanedArtwork()
+        
+        // 3. Remove unused songs
+        await cleanupUnusedSongs()
+        
+        print("✅ Database maintenance completed")
+    }
+    
+    private func cleanupOldPlayEvents() async {
+        let sixMonthsAgo = Calendar.current.date(byAdding: .month, value: -6, to: Date()) ?? Date()
+        
+        let descriptor = FetchDescriptor<PlayEvent>(
+            predicate: #Predicate { event in
+                event.timestamp < sixMonthsAgo
+            }
+        )
+        
+        do {
+            let oldEvents = try modelContext.fetch(descriptor)
+            print("🗑 Deleting \(oldEvents.count) old play events")
+            
+            for event in oldEvents {
+                modelContext.delete(event)
+            }
+            
+            try modelContext.save()
+        } catch {
+            print("❌ Error cleaning up old play events: \(error)")
+        }
+    }
+    
+    private func cleanupOrphanedArtwork() async {
+        do {
+            let allSongs = try modelContext.fetch(FetchDescriptor<TrackedSong>())
+            let validFileNames = Set(allSongs.compactMap { $0.artworkFileName })
+            
+            ArtworkManager.shared.cleanupOrphanedArtwork(validFileNames: validFileNames)
+            print("🖼 Cleaned up orphaned artwork files")
+        } catch {
+            print("❌ Error cleaning up artwork: \(error)")
+        }
+    }
+    
+    private func cleanupUnusedSongs() async {
+        let threeMonthsAgo = Calendar.current.date(byAdding: .month, value: -3, to: Date()) ?? Date()
+        
+        let descriptor = FetchDescriptor<TrackedSong>(
+            predicate: #Predicate { song in
+                song.localPlayCount == 0
+            }
+        )
+        
+        do {
+            let unplayedSongs = try modelContext.fetch(descriptor)
+            let songsToRemove = unplayedSongs.filter { song in
+                // Remove if no recent play events and no baseline plays
+                let recentEvents = song.playEvents.filter { $0.timestamp > threeMonthsAgo }
+                return recentEvents.isEmpty && song.baselinePlayCount == 0
+            }
+            
+            print("🗑 Removing \(songsToRemove.count) unused songs")
+            
+            for song in songsToRemove {
+                // Clean up artwork file
+                if let fileName = song.artworkFileName {
+                    ArtworkManager.shared.deleteArtwork(for: fileName)
+                }
+                modelContext.delete(song)
+            }
+            
+            try modelContext.save()
+            
+        } catch {
+            print("❌ Error removing unused songs: \(error)")
         }
     }
     

@@ -6,10 +6,9 @@ struct NowPlayingBar: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            // Album artwork
-            if let artworkData = tracker.currentSong?.albumArtworkData,
-               let uiImage = UIImage(data: artworkData) {
-                Image(uiImage: uiImage)
+            // Album artwork - Updated to use file system
+            if let artwork = tracker.currentSong?.albumArtwork {
+                Image(uiImage: artwork)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 50, height: 50)

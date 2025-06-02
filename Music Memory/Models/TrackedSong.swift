@@ -8,7 +8,7 @@ final class TrackedSong {
     var title: String
     var artist: String
     var albumTitle: String?
-    var albumArtworkData: Data?
+    var artworkFileName: String? // Store filename instead of data
     var baselinePlayCount: Int
     var localPlayCount: Int
     var lastKnownRank: Int?
@@ -25,13 +25,13 @@ final class TrackedSong {
          title: String,
          artist: String,
          albumTitle: String? = nil,
-         albumArtworkData: Data? = nil,
+         artworkFileName: String? = nil,
          baselinePlayCount: Int = 0) {
         self.persistentID = persistentID
         self.title = title
         self.artist = artist
         self.albumTitle = albumTitle
-        self.albumArtworkData = albumArtworkData
+        self.artworkFileName = artworkFileName
         self.baselinePlayCount = baselinePlayCount
         self.localPlayCount = 0
         self.lastKnownRank = nil
@@ -59,6 +59,12 @@ final class TrackedSong {
             return .unchanged
         }
     }
+    
+    // Get artwork from file system
+    var albumArtwork: UIImage? {
+        guard let fileName = artworkFileName else { return nil }
+        return ArtworkManager.shared.loadArtwork(for: fileName)
+    }
 }
 
 enum RankMovement {
@@ -80,7 +86,7 @@ enum RankMovement {
         }
     }
     
-    var color: Color {  // Changed to return Color type directly
+    var color: Color {
         switch self {
         case .up:
             return .green
