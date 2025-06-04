@@ -16,14 +16,8 @@ class PlaybackMonitor: ObservableObject {
     private var totalPlaybackTime: TimeInterval = 0
     private var hasBeenMarkedComplete = false
     
-    // Completion criteria - following Last.fm industry standard
-    // Based on research of major streaming services and scrobbling platforms:
-    // - Last.fm official: 50% of song OR 4 minutes maximum
-    // - Spotify→Last.fm: 40-50% completion
-    // - Most scrobbling apps: 40-50% default
-    private let minimumPlayTime: TimeInterval = 30.0        // 30 seconds minimum
-    private let minimumCompletionPercentage: Double = 0.5   // 50% of song (Last.fm standard)
-    private let maximumRequiredTime: TimeInterval = 240.0   // 4 minutes max (Last.fm standard)
+    // Completion criteria - simplified to 50% only
+    private let minimumCompletionPercentage: Double = 0.5   // 50% of song
     
     // Callbacks
     var onPlayCompleted: ((MPMediaItem, TimeInterval, TimeInterval, Double) -> Void)?
@@ -173,25 +167,17 @@ class PlaybackMonitor: ObservableObject {
     private func shouldCountAsPlay(item: MPMediaItem) -> Bool {
         let songDuration = item.playbackDuration
         
-        // Must meet minimum time requirement
-        guard totalPlaybackTime >= minimumPlayTime else {
-            print("⏭ Skipped - too short: \(totalPlaybackTime)s < \(minimumPlayTime)s")
+        // Must have valid song duration
+        guard songDuration > 0 else {
+            print("⏭ Skipped - no song duration available")
             return false
         }
         
-        // If played for 4+ minutes, automatically counts (Last.fm standard)
-        if totalPlaybackTime >= maximumRequiredTime {
-            print("✅ Completed - reached max time: \(totalPlaybackTime)s >= \(maximumRequiredTime)s")
-            return true
-        }
-        
-        // Must meet minimum percentage requirement (if song duration is known)
-        if songDuration > 0 {
-            let completionPercentage = totalPlaybackTime / songDuration
-            guard completionPercentage >= minimumCompletionPercentage else {
-                print("⏭ Skipped - low completion: \(Int(completionPercentage * 100))% < \(Int(minimumCompletionPercentage * 100))%")
-                return false
-            }
+        // Must meet 50% completion requirement
+        let completionPercentage = totalPlaybackTime / songDuration
+        guard completionPercentage >= minimumCompletionPercentage else {
+            print("⏭ Skipped - insufficient completion: \(Int(completionPercentage * 100))% < \(Int(minimumCompletionPercentage * 100))%")
+            return false
         }
         
         return true
@@ -244,21 +230,12 @@ class PlaybackMonitor: ObservableObject {
     private func shouldCountAsPlayForTime(item: MPMediaItem, totalTime: TimeInterval) -> Bool {
         let songDuration = item.playbackDuration
         
-        // Must meet minimum time requirement
-        guard totalTime >= minimumPlayTime else { return false }
+        // Must have valid song duration
+        guard songDuration > 0 else { return false }
         
-        // If played for 4+ minutes, automatically counts (Last.fm standard)
-        if totalTime >= maximumRequiredTime {
-            return true
-        }
-        
-        // Must meet minimum percentage requirement (if song duration is known)
-        if songDuration > 0 {
-            let completionPercentage = totalTime / songDuration
-            return completionPercentage >= minimumCompletionPercentage
-        }
-        
-        return true
+        // Must meet 50% completion requirement
+        let completionPercentage = totalTime / songDuration
+        return completionPercentage >= minimumCompletionPercentage
     }
     
     deinit {

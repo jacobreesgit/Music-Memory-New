@@ -33,7 +33,7 @@ Music Memory is an iOS app that creates personal music charts by tracking listen
 
 ### Key Value Propositions
 1. **Complete Coverage**: Tracks music whether app is open or closed
-2. **Industry-Standard Detection**: Uses Last.fm-compatible completion criteria
+2. **Simple Completion Criteria**: Uses straightforward 50% completion rule
 3. **Rich Data**: Detailed tracking with completion percentages and durations
 4. **Visual Feedback**: Clear indicators of tracking sources and reliability
 5. **Privacy-Focused**: All data stored locally on device
@@ -101,10 +101,9 @@ Music Memory uses a sophisticated three-tier approach to ensure no plays are mis
 **How**: `PlaybackMonitor` class actively tracks playback
 
 ```swift
-// Completion Criteria (Following Last.fm Standard)
-- Minimum: 30 seconds played
-- Percentage: 50% of song duration
-- Maximum: 4 minutes (auto-completes regardless of length)
+// Completion Criteria (Simplified)
+- Single requirement: 50% of song duration must be played
+- Must have valid song duration (> 0 seconds)
 ```
 
 **Data Captured**:
@@ -117,7 +116,7 @@ Music Memory uses a sophisticated three-tier approach to ensure no plays are mis
 - Most accurate tracking
 - Rich metadata available
 - Immediate feedback
-- Custom completion logic
+- Simple, consistent completion logic
 
 #### **2. System Sync (Secondary)**
 **When**: App reopens after being closed
@@ -155,40 +154,38 @@ Music Memory uses a sophisticated three-tier approach to ensure no plays are mis
 
 ### Completion Criteria Deep Dive
 
-#### **Industry Research Basis**
-Based on analysis of major music platforms:
+#### **Simplified Approach**
+Music Memory now uses a single, straightforward completion criterion:
 
-- **Last.fm Official API**: 50% OR 4 minutes maximum
-- **Spotify → Last.fm**: 40-50% completion requirement
-- **Third-party scrobblers**: 40-50% default threshold
-- **Streaming royalties**: 30 seconds minimum (Spotify, Apple Music)
+**50% Rule**: A song is considered "played" when 50% of its total duration has been listened to.
 
 #### **Implementation Logic**
 ```swift
 func shouldCountAsPlay(totalTime: TimeInterval, songDuration: TimeInterval) -> Bool {
-    // Must meet 30-second minimum
-    guard totalTime >= 30.0 else { return false }
+    // Must have valid song duration
+    guard songDuration > 0 else { return false }
     
-    // Auto-complete after 4 minutes (Last.fm standard)
-    if totalTime >= 240.0 { return true }
-    
-    // Otherwise require 50% completion
-    if songDuration > 0 {
-        return (totalTime / songDuration) >= 0.5
-    }
-    
-    return true
+    // Must complete 50% of the song
+    let completionPercentage = totalTime / songDuration
+    return completionPercentage >= 0.5
 }
 ```
 
 #### **Real-World Examples**
 | Song Length | Required Time | Reasoning |
 |-------------|---------------|-----------|
-| 30 seconds | 30 seconds (100%) | Short tracks need full listen |
-| 2 minutes | 1 minute (50%) | Standard pop song |
-| 4 minutes | 2 minutes (50%) | Standard rock song |
-| 8 minutes | 4 minutes (cap) | Long song, reasonable limit |
-| 15 minutes | 4 minutes (cap) | Epic track, practical limit |
+| 30 seconds | 15 seconds | 50% of very short track |
+| 2 minutes | 1 minute | 50% of standard pop song |
+| 4 minutes | 2 minutes | 50% of standard rock song |
+| 8 minutes | 4 minutes | 50% of long song |
+| 15 minutes | 7.5 minutes | 50% of epic track |
+
+#### **Benefits of 50% Only Rule**
+1. **Consistency**: Same rule applies to all songs regardless of length
+2. **Simplicity**: Easy to understand and implement
+3. **Fairness**: Short songs aren't artificially inflated, long songs aren't capped
+4. **Meaningful**: 50% represents genuine engagement with the music
+5. **No Edge Cases**: No special handling for very short or very long tracks
 
 ---
 
@@ -632,6 +629,33 @@ struct MainTabView: View {
 }
 ```
 
+### Completion Criteria Implementation
+
+#### **Simplified PlaybackMonitor**
+```swift
+// Single completion criterion
+private let minimumCompletionPercentage: Double = 0.5   // 50% of song
+
+func shouldCountAsPlay(item: MPMediaItem) -> Bool {
+    let songDuration = item.playbackDuration
+    
+    // Must have valid song duration
+    guard songDuration > 0 else {
+        print("⏭ Skipped - no song duration available")
+        return false
+    }
+    
+    // Must meet 50% completion requirement
+    let completionPercentage = totalPlaybackTime / songDuration
+    guard completionPercentage >= minimumCompletionPercentage else {
+        print("⏭ Skipped - insufficient completion: \(Int(completionPercentage * 100))% < 50%")
+        return false
+    }
+    
+    return true
+}
+```
+
 ### Reset-to-Setup System
 
 #### **Notification-Based Reset**
@@ -771,6 +795,18 @@ private func updatePlaybackState() {
 2. Verify ZStack alignment is `.bottom`
 3. Ensure tracker environment object is available
 
+#### **Problem: Songs Not Completing with 50% Rule**
+**Symptoms**: Songs playing for more than 50% but not registering as complete
+**Possible Causes**:
+1. Song duration not available from system
+2. Playback tracking not working correctly
+3. Timer not updating total playback time
+
+**Solutions**:
+1. Check that `item.playbackDuration > 0`
+2. Verify playback monitoring is active (look for tracking indicators)
+3. Ensure timer is running and accumulating time correctly
+
 #### **Problem: Database Maintenance Not Working**
 **Symptoms**: Maintenance button shows progress but no actual cleanup occurs
 **Possible Causes**:
@@ -819,24 +855,32 @@ private func updatePlaybackState() {
 - File system operation results
 - UserDefaults state consistency
 - Notification system reliability
+- Completion percentage calculations
+- Song duration validation
 
 ---
 
 ## Future Enhancements
 
 ### Near-Term Improvements
-1. **Additional Settings Options**:
+1. **Completion Criteria Options**:
+   - User-configurable completion percentage
+   - Alternative completion rules (time-based minimums)
+   - Per-genre completion criteria
+   - Advanced listening analytics
+
+2. **Additional Settings Options**:
    - Export data functionality
    - Import/backup options
    - Advanced maintenance scheduling
    - Detailed operation logs
 
-2. **Enhanced Tab Interface**:
+3. **Enhanced Tab Interface**:
    - Statistics tab with detailed analytics
    - History tab with timeline view
    - Search functionality across tabs
 
-3. **Improved Maintenance**:
+4. **Improved Maintenance**:
    - Selective cleanup options
    - Maintenance scheduling
    - Storage usage analytics
@@ -844,7 +888,7 @@ private func updatePlaybackState() {
 
 ### Long-Term Features
 1. **Advanced Settings**:
-   - Customizable completion criteria
+   - Customizable completion criteria (restore min/max options)
    - Advanced filtering options
    - Theme and appearance settings
    - Notification preferences
@@ -884,11 +928,11 @@ private func updatePlaybackState() {
 
 ## Conclusion
 
-Music Memory now features a professional tab-based interface that separates music analytics from app management, providing users with intuitive access to both chart viewing and powerful database management tools.
+Music Memory now features a professional tab-based interface with simplified, consistent play detection criteria. The app uses a single 50% completion rule that applies universally to all songs, eliminating complexity while maintaining meaningful engagement tracking.
 
-The app's evolution from a single-view interface to a structured tab system represents a significant improvement in user experience and app organization. The dedicated Settings tab puts users in complete control of their data, with clear descriptions of operations and robust safety measures through confirmation dialogs.
+The app's evolution includes:
 
-Key improvements include:
+**Simplified Completion Logic**: The new 50% rule provides consistency across all song lengths, removing arbitrary time limits and special cases. This makes the system more predictable and fair for all types of music.
 
 **User Interface**: Clean tab separation allows users to focus on music charts while having easy access to management tools. The overlaid Now Playing Bar maintains consistency across tabs without cluttering the interface.
 
@@ -898,13 +942,51 @@ Key improvements include:
 
 **Technical Architecture**: Notification-based reset system ensures clean state transitions, while the tab structure provides a scalable foundation for future feature additions.
 
+The simplified 50% completion criterion ensures that:
+- **Short songs** (30 seconds) require meaningful engagement (15 seconds)
+- **Standard songs** (3-4 minutes) follow familiar patterns (1.5-2 minutes)
+- **Long songs** (10+ minutes) don't get artificial advantages (5+ minutes required)
+- **Epic tracks** (20+ minutes) are treated fairly without caps (10+ minutes required)
+
+This approach provides several key benefits:
+
+**Consistency**: Every song follows the same completion rule, regardless of genre, era, or length. Users can predict exactly what constitutes a "play" for any track in their library.
+
+**Fairness**: No genre bias - classical movements, metal epics, pop singles, and podcast-style tracks all compete on equal terms based on actual engagement percentage.
+
+**Simplicity**: Developers and users alike benefit from a single, easy-to-understand rule that eliminates edge cases and special handling.
+
+**Meaningful Metrics**: 50% completion represents genuine listening engagement while being achievable for most listening scenarios.
+
+**Future-Proof**: As music consumption patterns evolve (shorter viral clips, longer ambient pieces), the percentage-based approach adapts automatically.
+
 The three-tier play detection system continues to provide comprehensive music tracking, while the new interface makes the app more approachable for users who want powerful analytics without technical complexity.
 
 Music Memory successfully balances sophisticated tracking capabilities with intuitive user control, making personal music analytics accessible to everyone while maintaining the technical depth needed for accurate, meaningful insights.
 
+**System Requirements**:
+- iOS 18.4 or later
+- Music library access permission
+- Active Apple Music or iTunes library
+- SwiftData compatible device
+
+**Privacy**:
+- All data stored locally on device
+- No external data transmission
+- User controls all data retention and deletion
+- Complete data portability through settings
+
+**Performance**:
+- Efficient real-time tracking with minimal battery impact
+- Optimized artwork storage and management
+- Background sync capabilities
+- Scalable to libraries of 50,000+ songs
+
+Music Memory represents a mature approach to personal music analytics, providing users with meaningful insights into their listening habits while respecting their privacy and giving them complete control over their data.
+
 ---
 
-*Documentation Version: 2.0*  
+*Documentation Version: 2.1*  
 *Last Updated: June 2025*  
 *App Version: 1.0*  
-*Major Changes: Complete interface restructure with tab-based navigation and dedicated settings management*
+*Major Changes: Simplified completion criteria to 50% rule only, updated all related documentation sections*
