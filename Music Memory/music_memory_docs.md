@@ -263,8 +263,8 @@ Music Memory/
 │   └── NowPlayingTracker.swift        // Central coordinator
 │
 ├── Managers/
-│   ├── PlaybackMonitor.swift          // Real-time tracking [NEW]
-│   ├── SystemSyncManager.swift        // Background sync [NEW]
+│   ├── PlaybackMonitor.swift          // Real-time tracking
+│   ├── SystemSyncManager.swift        // Background sync
 │   └── ArtworkManager.swift           // File system artwork
 │
 ├── Views/
@@ -287,20 +287,23 @@ Music Memory/
 - Setup flow coordination
 - Permission state tracking
 - Transition between setup and main app
+- **Current song state refresh after setup completion**
 
 #### **NowPlayingTracker.swift**
 - Central coordinator for all tracking
 - Manages PlaybackMonitor and SystemSyncManager
 - Handles ranking calculations
 - Sends push notifications
+- **Provides refresh methods for current song state**
+- **Ensures consistent state across app transitions**
 
-#### **PlaybackMonitor.swift** [NEW]
+#### **PlaybackMonitor.swift**
 - Real-time playback observation
 - Completion criteria enforcement
 - Timer-based progress tracking
 - Play event creation
 
-#### **SystemSyncManager.swift** [NEW]
+#### **SystemSyncManager.swift**
 - Background play discovery
 - System play count comparison
 - Estimated timestamp distribution
@@ -313,10 +316,10 @@ Music Memory/
 ### Setup Flow Overview
 
 ```
-App Launch → Permission Check → Library Seeding → Main App
-     ↓              ↓                ↓              ↓
- Check Stored   Request Music    Process Songs   Start Tracking
- Permissions    Library Access   + Artwork       + Display Charts
+App Launch → Permission Check → Library Seeding → State Refresh → Main App
+     ↓              ↓                ↓               ↓              ↓
+ Check Stored   Request Music    Process Songs   Update Current   Start Tracking
+ Permissions    Library Access   + Artwork       Song State      + Display Charts
 ```
 
 ### Detailed Setup Process
@@ -360,10 +363,22 @@ MPMediaLibrary.requestAuthorization { status in
 - Historical `PlayEvent`s with estimated timestamps
 - UserDefaults flag: `hasSeededLibrary = true`
 
-#### **3. Transition to Main App**
-**Trigger**: Seeding complete + permissions granted
+#### **3. State Refresh Phase** [NEW]
+**Purpose**: Ensure current song state is accurate after setup
+**Process**:
+1. Refresh current song from system music player
+2. Update playback state (playing/paused)
+3. Sync tracking state with current playback
+
+**Why This Matters**:
+- Prevents blank now playing display after setup
+- Ensures immediate tracking starts if music is playing
+- Maintains consistency between system state and app state
+
+#### **4. Transition to Main App**
+**Trigger**: Seeding complete + permissions granted + state refreshed
 **Animation**: Smooth fade transition with 0.5s duration
-**Result**: User sees populated chart immediately
+**Result**: User sees populated chart and current song immediately
 
 ---
 
@@ -375,16 +390,23 @@ MPMediaLibrary.requestAuthorization { status in
 **Trigger**: Every app launch
 **Type**: Full sync if >4 hours since last, otherwise quick sync
 **Purpose**: Catch plays that occurred while app was closed
+**Post-Action**: Refresh current song state
 
 #### **2. Foreground Sync**
 **Trigger**: App returns from background
 **Type**: Quick sync (current song only)
 **Purpose**: Update current song's play count
+**Post-Action**: Refresh current song and playback state
 
 #### **3. Manual Sync**
 **Trigger**: User pulls to refresh (future enhancement)
 **Type**: Full sync
 **Purpose**: User-initiated update
+
+#### **4. Setup Completion Sync** [NEW]
+**Trigger**: Library seeding completion
+**Type**: State refresh only
+**Purpose**: Initialize current song tracking
 
 ### Sync Process Details
 
@@ -399,6 +421,7 @@ MPMediaLibrary.requestAuthorization { status in
      - Update lastSystemPlayCount and lastSyncTimestamp
 3. Save all changes to SwiftData
 4. Update UserDefaults: lastFullSyncDate
+5. Refresh current song state [NEW]
 ```
 
 #### **Quick Sync Process**
@@ -407,6 +430,7 @@ MPMediaLibrary.requestAuthorization { status in
 2. Check if playCount increased
 3. Create PlayEvents for new plays
 4. Update song's sync timestamp
+5. Refresh current song and playback state [NEW]
 ```
 
 #### **Timestamp Distribution Algorithm**
@@ -524,6 +548,33 @@ class PlaybackMonitor: ObservableObject {
 }
 ```
 
+#### **State Management and Refresh** [NEW]
+
+```swift
+// NowPlayingTracker refresh methods
+func refreshCurrentState() {
+    updateCurrentSong()
+    updatePlaybackState()
+}
+
+private func updateCurrentSong() {
+    // Query current playing item from system
+    // Match with tracked song in database
+    // Update published currentSong property
+}
+
+private func updatePlaybackState() {
+    // Check system playback state
+    // Update published isPlaying property
+}
+```
+
+**When Refresh Occurs**:
+- App setup completion
+- App foreground transition
+- After sync operations
+- Manual refresh calls
+
 #### **Notification Observers**
 ```swift
 // Song changes
@@ -631,6 +682,15 @@ FetchDescriptor<TrackedSong>(
 3. Verify music library permissions
 4. Check song source (streaming vs. downloaded)
 
+#### **Problem: Blank Now Playing After Setup** [FIXED]
+**Symptoms**: Now playing bar shows "Not Playing" even when music is playing after setup completion
+**Root Cause**: Current song state not refreshed after transition from setup to main app
+
+**Solution Applied**:
+1. Added `refreshCurrentState()` method to `NowPlayingTracker`
+2. App now automatically refreshes current song state after setup completion
+3. State refresh also occurs on app foreground and after sync operations
+
 #### **Problem: Duplicate Plays**
 **Symptoms**: Same song showing multiple plays simultaneously
 **Possible Causes**:
@@ -687,6 +747,32 @@ FetchDescriptor<TrackedSong>(
 - Last sync timestamp and success status
 - Real-time tracking active duration
 - Artwork cache hit/miss ratio
+- **Current song refresh frequency and success rate** [NEW]
+
+---
+
+## Future Enhancements
+
+### Near-Term Improvements
+1. **Pull-to-refresh functionality** for manual sync
+2. **Song detail views** with play history charts
+3. **Export capabilities** for personal data
+4. **Advanced filtering** by artist, album, genre
+5. **Improved state management** for edge cases
+
+### Long-Term Features
+1. **Social sharing** of personal charts
+2. **Mood-based analytics** using song metadata
+3. **Listening streak tracking** and achievements
+4. **Integration with external services** (Last.fm, etc.)
+5. **Apple Watch companion app**
+
+### Technical Debt
+1. **Enhanced error handling** for network failures
+2. **Background app refresh optimization**
+3. **Memory usage optimization** for large libraries
+4. **Automated testing suite** for critical paths
+5. **Performance monitoring** and analytics
 
 ---
 
@@ -696,12 +782,15 @@ Music Memory represents a sophisticated approach to personal music analytics, co
 
 The app's architecture balances technical complexity with user simplicity, providing rich insights without overwhelming the interface. By following industry standards for play detection and maintaining compatibility with established music tracking conventions, Music Memory offers reliable, meaningful data about personal listening habits.
 
-Key strengths include complete play coverage regardless of app state, detailed source attribution for transparency, and efficient local storage that respects user privacy. The modular design allows for future enhancements while maintaining core functionality stability.
+Recent improvements to state management ensure a seamless user experience from setup through daily use, with automatic refresh mechanisms that maintain accurate current song display across all app transitions.
+
+Key strengths include complete play coverage regardless of app state, detailed source attribution for transparency, efficient local storage that respects user privacy, and robust state management that handles edge cases gracefully. The modular design allows for future enhancements while maintaining core functionality stability.
 
 Music Memory transforms passive music consumption into active insight, helping users understand and appreciate their musical journey through quantified, personal analytics.
 
 ---
 
-*Documentation Version: 1.0*  
+*Documentation Version: 1.1*  
 *Last Updated: June 2025*  
-*App Version: 1.0*
+*App Version: 1.0*  
+*Latest Changes: Fixed blank now playing issue after setup completion*

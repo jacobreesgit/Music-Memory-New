@@ -43,6 +43,15 @@ class NowPlayingTracker: ObservableObject {
         }
     }
     
+    // MARK: - Public Methods
+    
+    /// Refreshes the current song and playback state
+    func refreshCurrentState() {
+        print("🔄 Manually refreshing current state...")
+        updateCurrentSong()
+        updatePlaybackState()
+    }
+    
     private func setupPlaybackMonitor() {
         // Handle play completions from real-time monitoring
         playbackMonitor.onPlayCompleted = { [weak self] item, playbackDuration, songDuration, completionPercentage in
@@ -161,7 +170,7 @@ class NowPlayingTracker: ObservableObject {
         }
     }
     
-    private func performInitialSync() async {
+    func performInitialSync() async {
         guard !isSyncing else { return }
         
         isSyncing = true
@@ -173,12 +182,20 @@ class NowPlayingTracker: ObservableObject {
             await systemSyncManager.quickSync()
         }
         
+        // Refresh current song after sync
+        updateCurrentSong()
+        updatePlaybackState()
+        
         isSyncing = false
     }
     
     private func handleAppForegrounded() async {
         // Quick sync when app comes to foreground
         await systemSyncManager.quickSync()
+        
+        // Refresh current state
+        updateCurrentSong()
+        updatePlaybackState()
     }
     
     private func checkRankChangeAndNotify(for song: TrackedSong) async {
@@ -371,6 +388,10 @@ class NowPlayingTracker: ObservableObject {
         
         // Mark that we've completed initial seeding
         UserDefaults.standard.set(true, forKey: "hasSeededLibrary")
+        
+        // Refresh current song state after seeding
+        updateCurrentSong()
+        updatePlaybackState()
     }
     
     private func createHistoricalPlayEvents(for song: TrackedSong, playCount: Int) async {

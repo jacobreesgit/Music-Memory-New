@@ -34,20 +34,21 @@ struct MusicMemoryApp: App {
                 switch appState {
                 case .initializing:
                     LoadingView()
-                        .transition(.opacity)
                     
                 case .firstTimeSetup:
                     SetupView(tracker: tracker)
                         .onReceive(tracker.$isSeeding) { isSeeding in
                             checkAndUpdateSetupStatus(isSeeding: isSeeding)
                         }
-                        .transition(.opacity)
                     
                 case .ready:
                     ContentView()
                         .environmentObject(tracker)
                         .modelContainer(container)
-                        .transition(.opacity)
+                        .onAppear {
+                            // Refresh current song state when main view appears
+                            refreshTrackerState()
+                        }
                 }
             }
             .onAppear {
@@ -65,14 +66,10 @@ struct MusicMemoryApp: App {
         
         if hasPermission && hasSeeded {
             // Already set up, go directly to ready state
-            withAnimation(.easeInOut(duration: 0.3)) {
-                appState = .ready
-            }
+            appState = .ready
         } else {
             // First time setup needed
-            withAnimation(.easeInOut(duration: 0.3)) {
-                appState = .firstTimeSetup
-            }
+            appState = .firstTimeSetup
             
             // Auto-request permission if needed
             if MPMediaLibrary.authorizationStatus() == .notDetermined {
@@ -93,11 +90,21 @@ struct MusicMemoryApp: App {
             
             if hasPermission && hasSeeded && !isSeeding {
                 print("✅ Setup complete - transitioning to main app")
-                withAnimation(.easeInOut(duration: 0.5)) {
-                    appState = .ready
+                appState = .ready
+                
+                // Refresh tracker state after transition
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    refreshTrackerState()
                 }
             }
         }
+    }
+    
+    private func refreshTrackerState() {
+        print("🔄 Refreshing tracker state...")
+        
+        // Force update current song state
+        tracker.refreshCurrentState()
     }
     
     private func requestMusicLibraryAccess() {
@@ -108,8 +115,11 @@ struct MusicMemoryApp: App {
                 if status == .authorized {
                     let hasSeeded = UserDefaults.standard.bool(forKey: "hasSeededLibrary")
                     if hasSeeded {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            appState = .ready
+                        appState = .ready
+                        
+                        // Refresh tracker state after transition
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            refreshTrackerState()
                         }
                     }
                     // If not seeded, stay in setup state to begin seeding
