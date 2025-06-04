@@ -254,8 +254,12 @@ class NowPlayingTracker: ObservableObject {
         }
     }
     
+    
     func seedLibrary() async {
         print("🌱 Starting library seed...")
+        
+        // Small delay to ensure permission is fully processed
+        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
         
         isSeeding = true
         seedingProgress = 0.0
