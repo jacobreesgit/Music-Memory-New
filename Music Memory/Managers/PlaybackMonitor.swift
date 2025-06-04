@@ -134,7 +134,14 @@ class PlaybackMonitor: ObservableObject {
         stopPlaybackTimer()
     }
     
-    private func finalizePreviousTrack() {
+    // Mark as nonisolated so it can be called from deinit
+    nonisolated private func finalizePreviousTrack() {
+        Task { @MainActor in
+            _finalizePreviousTrack()
+        }
+    }
+    
+    private func _finalizePreviousTrack() {
         guard let item = currentTrackingItem else { return }
         
         // Accumulate final playback time if still tracking
@@ -200,7 +207,14 @@ class PlaybackMonitor: ObservableObject {
         }
     }
     
-    private func stopPlaybackTimer() {
+    // Mark as nonisolated so it can be called from deinit
+    nonisolated private func stopPlaybackTimer() {
+        Task { @MainActor in
+            _stopPlaybackTimer()
+        }
+    }
+    
+    private func _stopPlaybackTimer() {
         playbackTimer?.invalidate()
         playbackTimer = nil
     }

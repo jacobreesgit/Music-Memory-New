@@ -51,7 +51,8 @@ struct ChartView: View {
                                 rank: index + 1,
                                 song: song,
                                 timeFilter: timeFilter,
-                                isCurrentlyPlaying: tracker.currentSong?.persistentID == song.persistentID
+                                isCurrentlyPlaying: tracker.currentSong?.persistentID == song.persistentID,
+                                tracker: tracker
                             )
                             .transition(.asymmetric(
                                 insertion: .move(edge: .trailing).combined(with: .opacity),
@@ -149,6 +150,7 @@ struct ChartRow: View {
     let song: TrackedSong
     let timeFilter: ChartView.TimeFilter
     let isCurrentlyPlaying: Bool
+    let tracker: NowPlayingTracker
     
     private var playCount: Int {
         if let startDate = timeFilter.startDate {
@@ -265,3 +267,14 @@ struct ChartRow: View {
                             .font(.caption2)
                             .foregroundColor(.red)
                     }
+                }
+            }
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(isCurrentlyPlaying ? Color.accentColor.opacity(0.1) : Color.clear)
+        )
+    }
+}

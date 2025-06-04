@@ -127,7 +127,7 @@ class SystemSyncManager {
         let now = Date()
         let startTime = now.addingTimeInterval(-timeWindow)
         
-        for i in 0..<playCount {
+        for _ in 0..<playCount {
             // Distribute plays somewhat randomly across the time window
             let randomOffset = TimeInterval.random(in: 0...timeWindow)
             let playTime = startTime.addingTimeInterval(randomOffset)
@@ -148,7 +148,7 @@ class SystemSyncManager {
         let now = Date()
         let dayRange: TimeInterval = 365 * 24 * 60 * 60 // 1 year ago
         
-        for i in 0..<playCount {
+        for _ in 0..<playCount {
             // Distribute historical plays over past year
             let randomDaysAgo = TimeInterval.random(in: 0...dayRange)
             let playTime = now.addingTimeInterval(-randomDaysAgo)
@@ -168,9 +168,12 @@ class SystemSyncManager {
         // Lightweight sync for app foreground - only check current playing song
         guard let currentItem = MPMusicPlayerController.systemMusicPlayer.nowPlayingItem else { return }
         
+        // Capture the persistentID before using it in the predicate
+        let targetPersistentID = currentItem.persistentID
+        
         let descriptor = FetchDescriptor<TrackedSong>(
             predicate: #Predicate { song in
-                song.persistentID == currentItem.persistentID
+                song.persistentID == targetPersistentID
             }
         )
         
