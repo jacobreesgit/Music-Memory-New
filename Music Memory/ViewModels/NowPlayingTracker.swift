@@ -18,21 +18,42 @@ class NowPlayingTracker: ObservableObject {
     @Published var currentProcessingSong: String = ""
     @Published var estimatedTimeRemaining: Int = 0
     
+    // Sync status
+    @Published var isSyncing: Bool = false
+    
     private let musicPlayer = MPMusicPlayerController.systemMusicPlayer
     private var cancellables = Set<AnyCancellable>()
     private var modelContext: ModelContext
-    private var previousItem: MPMediaItem?
-    private var previousPlayCount: Int = 0
+    let playbackMonitor: PlaybackMonitor
+    private let systemSyncManager: SystemSyncManager
     
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
+        self.playbackMonitor = PlaybackMonitor()
+        self.systemSyncManager = SystemSyncManager(modelContext: modelContext)
+        
+        setupPlaybackMonitor()
         setupObservers()
         requestNotificationPermission()
         updateCurrentSong()
         
-        // Cleanup old data periodically
+        // Perform system sync on app launch
         Task {
-            await performMaintenanceIfNeeded()
+            await performInitialSync()
+        }
+    }
+    
+    private func setupPlaybackMonitor() {
+        // Handle play completions from real-time monitoring
+        playbackMonitor.onPlayCompleted = { [weak self] item, playbackDuration, songDuration, completionPercentage in
+            Task { @MainActor in
+                await self?.handlePlayCompleted(
+                    item: item,
+                    playbackDuration: playbackDuration,
+                    songDuration: songDuration,
+                    completionPercentage: completionPercentage
+                )
+            }
         }
     }
     
@@ -41,7 +62,7 @@ class NowPlayingTracker: ObservableObject {
         NotificationCenter.default.publisher(for: .MPMusicPlayerControllerNowPlayingItemDidChange)
             .sink { [weak self] _ in
                 Task { @MainActor in
-                    self?.handleNowPlayingItemChanged()
+                    self?.updateCurrentSong()
                 }
             }
             .store(in: &cancellables)
@@ -55,33 +76,16 @@ class NowPlayingTracker: ObservableObject {
             }
             .store(in: &cancellables)
         
-        musicPlayer.beginGeneratingPlaybackNotifications()
-    }
-    
-    private func handleNowPlayingItemChanged() {
-        print("🎵 Now playing item changed")
-        
-        // Check if previous song completed
-        if let previousItem = previousItem {
-            let previousSongID = previousItem.persistentID
-            
-            let currentPlayCount = previousItem.playCount
-            if currentPlayCount > previousPlayCount {
-                print("✅ Song completed: \(previousItem.title ?? "Unknown") - Play count increased from \(previousPlayCount) to \(currentPlayCount)")
-                recordPlayEvent(for: previousSongID)
-            } else {
-                print("⏭ Song skipped: \(previousItem.title ?? "Unknown") - Play count unchanged")
+        // App lifecycle events
+        NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)
+            .sink { [weak self] _ in
+                Task { @MainActor in
+                    await self?.handleAppForegrounded()
+                }
             }
-        }
+            .store(in: &cancellables)
         
-        // Update to new song
-        updateCurrentSong()
-        
-        // Store reference to current item
-        if let currentItem = musicPlayer.nowPlayingItem {
-            previousItem = currentItem
-            previousPlayCount = currentItem.playCount
-        }
+        musicPlayer.beginGeneratingPlaybackNotifications()
     }
     
     private func updateCurrentSong() {
@@ -114,48 +118,73 @@ class NowPlayingTracker: ObservableObject {
         isPlaying = musicPlayer.playbackState == .playing
     }
     
-    private func recordPlayEvent(for songID: UInt64) {
+    private func handlePlayCompleted(item: MPMediaItem, playbackDuration: TimeInterval, songDuration: TimeInterval, completionPercentage: Double) async {
+        let persistentID = item.persistentID
+        
         let descriptor = FetchDescriptor<TrackedSong>(
             predicate: #Predicate { song in
-                song.persistentID == songID
+                song.persistentID == persistentID
             }
         )
         
         do {
             let songs = try modelContext.fetch(descriptor)
             guard let song = songs.first else {
-                print("❌ Song not found for ID: \(songID)")
+                print("❌ Song not found for completed play: \(item.title ?? "Unknown")")
                 return
             }
             
-            // Record play event
-            let playEvent = PlayEvent(song: song)
-            modelContext.insert(playEvent)
+            // Create play event with detailed tracking data
+            let playEvent = PlayEvent(
+                timestamp: Date(),
+                song: song,
+                source: .realTime,
+                playbackDuration: playbackDuration,
+                songDuration: songDuration,
+                completionPercentage: completionPercentage
+            )
             
-            // Increment local play count
-            song.incrementPlayCount()
+            modelContext.insert(playEvent)
             
             // Save changes
             try modelContext.save()
             
-            print("📊 Recorded play event for: \(song.title)")
+            print("📊 Recorded real-time play event for: \(song.title)")
+            print("   Duration: \(Int(playbackDuration))s / \(Int(songDuration))s (\(Int(completionPercentage * 100))%)")
             print("   Total plays: \(song.totalPlayCount)")
             
             // Check for rank changes and notify
-            Task {
-                await checkRankChangeAndNotify(for: song)
-            }
+            await checkRankChangeAndNotify(for: song)
             
         } catch {
             print("❌ Error recording play event: \(error)")
         }
     }
     
+    private func performInitialSync() async {
+        guard !isSyncing else { return }
+        
+        isSyncing = true
+        
+        if systemSyncManager.shouldPerformFullSync() {
+            await systemSyncManager.performSystemSync()
+            systemSyncManager.markFullSyncComplete()
+        } else {
+            await systemSyncManager.quickSync()
+        }
+        
+        isSyncing = false
+    }
+    
+    private func handleAppForegrounded() async {
+        // Quick sync when app comes to foreground
+        await systemSyncManager.quickSync()
+    }
+    
     private func checkRankChangeAndNotify(for song: TrackedSong) async {
         // Recalculate rankings
         let descriptor = FetchDescriptor<TrackedSong>(
-            sortBy: [SortDescriptor(\.localPlayCount, order: .reverse),
-                     SortDescriptor(\.baselinePlayCount, order: .reverse)]
+            sortBy: [SortDescriptor(\.totalPlayCount, order: .reverse)]
         )
         
         do {
@@ -255,7 +284,7 @@ class NowPlayingTracker: ObservableObject {
             seedingProgress = Double(index) / Double(items.count)
             
             // Calculate estimated time remaining
-            if index > 10 { // Start estimating after processing a few songs
+            if index > 10 {
                 let elapsedTime = Date().timeIntervalSince(startTime)
                 let averageTimePerSong = elapsedTime / Double(index)
                 let remainingSongs = items.count - index
@@ -291,12 +320,19 @@ class NowPlayingTracker: ObservableObject {
                     artist: item.artist ?? "Unknown Artist",
                     albumTitle: item.albumTitle,
                     artworkFileName: artworkFileName,
-                    baselinePlayCount: item.playCount
+                    duration: item.playbackDuration,
+                    systemPlayCount: item.playCount
                 )
                 
                 modelContext.insert(trackedSong)
+                
+                // Create historical play events if the song has play count
+                if item.playCount > 0 {
+                    await createHistoricalPlayEvents(for: trackedSong, playCount: item.playCount)
+                }
+                
                 processedCount += 1
-                print("➕ Added: \(trackedSong.title) by \(trackedSong.artist)")
+                print("➕ Added: \(trackedSong.title) by \(trackedSong.artist) (\(item.playCount) plays)")
                 
                 // Save every 50 songs to avoid memory issues
                 if processedCount % 50 == 0 {
@@ -307,7 +343,7 @@ class NowPlayingTracker: ObservableObject {
                 print("❌ Error checking/adding song: \(error)")
             }
             
-            // Small delay to allow UI updates and prevent blocking
+            // Small delay to allow UI updates
             if index % 10 == 0 {
                 try? await Task.sleep(nanoseconds: 10_000_000) // 0.01 seconds
             }
@@ -328,41 +364,53 @@ class NowPlayingTracker: ObservableObject {
         try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
         
         isSeeding = false
+        
+        // Mark that we've completed initial seeding
+        UserDefaults.standard.set(true, forKey: "hasSeededLibrary")
+    }
+    
+    private func createHistoricalPlayEvents(for song: TrackedSong, playCount: Int) async {
+        let now = Date()
+        let yearRange: TimeInterval = 365 * 24 * 60 * 60 // 1 year
+        
+        for _ in 0..<playCount {
+            let randomTimeAgo = TimeInterval.random(in: 0...yearRange)
+            let playTime = now.addingTimeInterval(-randomTimeAgo)
+            
+            let playEvent = PlayEvent(
+                timestamp: playTime,
+                song: song,
+                source: .estimated,
+                songDuration: song.duration > 0 ? song.duration : nil
+            )
+            
+            modelContext.insert(playEvent)
+        }
     }
     
     // MARK: - Maintenance and Cleanup
     
-    private func performMaintenanceIfNeeded() async {
-        let lastMaintenance = UserDefaults.standard.object(forKey: "lastMaintenanceDate") as? Date ?? Date.distantPast
-        let daysSinceLastMaintenance = Calendar.current.dateComponents([.day], from: lastMaintenance, to: Date()).day ?? 0
-        
-        if daysSinceLastMaintenance >= 7 { // Weekly maintenance
-            await performMaintenance()
-            UserDefaults.standard.set(Date(), forKey: "lastMaintenanceDate")
-        }
-    }
-    
     func performMaintenance() async {
         print("🧹 Starting database maintenance...")
         
-        // 1. Clean up old play events (keep only last 6 months)
+        // 1. Clean up old play events (keep only last 1 year)
         await cleanupOldPlayEvents()
         
         // 2. Clean up orphaned artwork files
         await cleanupOrphanedArtwork()
         
-        // 3. Remove unused songs
+        // 3. Remove completely unused songs
         await cleanupUnusedSongs()
         
         print("✅ Database maintenance completed")
     }
     
     private func cleanupOldPlayEvents() async {
-        let sixMonthsAgo = Calendar.current.date(byAdding: .month, value: -6, to: Date()) ?? Date()
+        let oneYearAgo = Calendar.current.date(byAdding: .year, value: -1, to: Date()) ?? Date()
         
         let descriptor = FetchDescriptor<PlayEvent>(
             predicate: #Predicate { event in
-                event.timestamp < sixMonthsAgo
+                event.timestamp < oneYearAgo
             }
         )
         
@@ -393,20 +441,19 @@ class NowPlayingTracker: ObservableObject {
     }
     
     private func cleanupUnusedSongs() async {
-        let threeMonthsAgo = Calendar.current.date(byAdding: .month, value: -3, to: Date()) ?? Date()
+        let sixMonthsAgo = Calendar.current.date(byAdding: .month, value: -6, to: Date()) ?? Date()
         
         let descriptor = FetchDescriptor<TrackedSong>(
             predicate: #Predicate { song in
-                song.localPlayCount == 0
+                song.totalPlayCount == 0
             }
         )
         
         do {
             let unplayedSongs = try modelContext.fetch(descriptor)
             let songsToRemove = unplayedSongs.filter { song in
-                // Remove if no recent play events and no baseline plays
-                let recentEvents = song.playEvents.filter { $0.timestamp > threeMonthsAgo }
-                return recentEvents.isEmpty && song.baselinePlayCount == 0
+                // Remove only if no recent activity and no historical plays
+                song.playEvents.isEmpty || song.playEvents.allSatisfy { $0.timestamp < sixMonthsAgo }
             }
             
             print("🗑 Removing \(songsToRemove.count) unused songs")

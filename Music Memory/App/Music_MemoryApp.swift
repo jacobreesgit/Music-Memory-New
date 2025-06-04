@@ -6,7 +6,13 @@ import MediaPlayer
 struct MusicMemoryApp: App {
     let container: ModelContainer
     @StateObject private var tracker: NowPlayingTracker
-    @State private var isSetupComplete = false
+    @State private var appState: AppState = .initializing
+    
+    enum AppState {
+        case initializing
+        case firstTimeSetup
+        case ready
+    }
     
     init() {
         do {
@@ -25,36 +31,54 @@ struct MusicMemoryApp: App {
     var body: some Scene {
         WindowGroup {
             ZStack {
-                if isSetupComplete {
-                    ContentView()
-                        .environmentObject(tracker)
-                        .modelContainer(container)
+                switch appState {
+                case .initializing:
+                    LoadingView()
                         .transition(.opacity)
-                } else {
+                    
+                case .firstTimeSetup:
                     SetupView(tracker: tracker)
                         .onReceive(tracker.$isSeeding) { isSeeding in
                             checkAndUpdateSetupStatus(isSeeding: isSeeding)
                         }
                         .transition(.opacity)
+                    
+                case .ready:
+                    ContentView()
+                        .environmentObject(tracker)
+                        .modelContainer(container)
+                        .transition(.opacity)
                 }
             }
             .onAppear {
-                checkIfSetupComplete()
-                // Auto-request permission if needed
-                if MPMediaLibrary.authorizationStatus() == .notDetermined {
-                    requestMusicLibraryAccess()
-                }
+                initializeApp()
             }
         }
     }
     
-    private func checkIfSetupComplete() {
+    private func initializeApp() {
+        // Check setup status immediately
         let hasPermission = MPMediaLibrary.authorizationStatus() == .authorized
         let hasSeeded = UserDefaults.standard.bool(forKey: "hasSeededLibrary")
         
-        isSetupComplete = hasPermission && hasSeeded
+        print("🔍 App initialization - Permission: \(hasPermission), Seeded: \(hasSeeded)")
         
-        print("🔍 Setup check - Permission: \(hasPermission), Seeded: \(hasSeeded), Complete: \(isSetupComplete)")
+        if hasPermission && hasSeeded {
+            // Already set up, go directly to ready state
+            withAnimation(.easeInOut(duration: 0.3)) {
+                appState = .ready
+            }
+        } else {
+            // First time setup needed
+            withAnimation(.easeInOut(duration: 0.3)) {
+                appState = .firstTimeSetup
+            }
+            
+            // Auto-request permission if needed
+            if MPMediaLibrary.authorizationStatus() == .notDetermined {
+                requestMusicLibraryAccess()
+            }
+        }
     }
     
     private func checkAndUpdateSetupStatus(isSeeding: Bool) {
@@ -70,7 +94,7 @@ struct MusicMemoryApp: App {
             if hasPermission && hasSeeded && !isSeeding {
                 print("✅ Setup complete - transitioning to main app")
                 withAnimation(.easeInOut(duration: 0.5)) {
-                    isSetupComplete = true
+                    appState = .ready
                 }
             }
         }
@@ -80,7 +104,40 @@ struct MusicMemoryApp: App {
         MPMediaLibrary.requestAuthorization { status in
             DispatchQueue.main.async {
                 print("🎵 Permission status updated: \(status)")
-                checkIfSetupComplete()
+                
+                if status == .authorized {
+                    let hasSeeded = UserDefaults.standard.bool(forKey: "hasSeededLibrary")
+                    if hasSeeded {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            appState = .ready
+                        }
+                    }
+                    // If not seeded, stay in setup state to begin seeding
+                }
+            }
+        }
+    }
+}
+
+struct LoadingView: View {
+    var body: some View {
+        ZStack {
+            Color(UIColor.systemBackground)
+                .ignoresSafeArea()
+            
+            VStack(spacing: 24) {
+                Image(systemName: "music.note.house")
+                    .font(.system(size: 60))
+                    .foregroundColor(.accentColor)
+                    .symbolEffect(.pulse)
+                
+                Text("Music Memory")
+                    .font(.title.bold())
+                    .foregroundColor(.primary)
+                
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .accentColor))
+                    .scaleEffect(1.2)
             }
         }
     }

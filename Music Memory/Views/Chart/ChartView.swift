@@ -50,6 +50,7 @@ struct ChartView: View {
                             ChartRow(
                                 rank: index + 1,
                                 song: song,
+                                timeFilter: timeFilter,
                                 isCurrentlyPlaying: tracker.currentSong?.persistentID == song.persistentID
                             )
                             .transition(.asymmetric(
@@ -65,7 +66,16 @@ struct ChartView: View {
             .navigationTitle("Music Memory")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    if tracker.isSyncing {
+                        HStack {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                            Text("Syncing")
+                                .font(.caption)
+                        }
+                    }
+                    
                     Button(action: {
                         Task {
                             isPerformingMaintenance = true
@@ -100,38 +110,33 @@ struct ChartView: View {
     }
     
     private func fetchSongs() {
-        var descriptor = FetchDescriptor<TrackedSong>()
-        
-        // Apply time filter if needed
-        if let startDate = timeFilter.startDate {
-            descriptor.predicate = #Predicate<TrackedSong> { song in
-                song.playEvents.contains { event in
-                    event.timestamp >= startDate
-                }
-            }
-        }
-        
         do {
-            var filteredSongs = try modelContext.fetch(descriptor)
+            var allSongs = try modelContext.fetch(FetchDescriptor<TrackedSong>())
             
-            // Sort by total play count (or filtered play count)
-            if timeFilter == .allTime {
-                filteredSongs.sort { $0.totalPlayCount > $1.totalPlayCount }
-            } else if let startDate = timeFilter.startDate {
+            // Filter and sort based on time filter
+            if let startDate = timeFilter.startDate {
+                // Filter songs that have plays in the time period
+                allSongs = allSongs.filter { song in
+                    !song.playsInPeriod(since: startDate).isEmpty
+                }
+                
                 // Sort by plays within the time period
-                filteredSongs.sort { song1, song2 in
-                    let song1Plays = song1.playEvents.filter { $0.timestamp >= startDate }.count
-                    let song2Plays = song2.playEvents.filter { $0.timestamp >= startDate }.count
+                allSongs.sort { song1, song2 in
+                    let song1Plays = song1.playsInPeriod(since: startDate).count
+                    let song2Plays = song2.playsInPeriod(since: startDate).count
                     return song1Plays > song2Plays
                 }
+            } else {
+                // Sort by total play count for all time
+                allSongs.sort { $0.totalPlayCount > $1.totalPlayCount }
             }
             
             // Update rankings
-            for (index, song) in filteredSongs.enumerated() {
+            for (index, song) in allSongs.enumerated() {
                 song.updateRank(index + 1)
             }
             
-            songs = filteredSongs
+            songs = allSongs
             
         } catch {
             print("Error fetching songs: \(error)")
@@ -142,7 +147,28 @@ struct ChartView: View {
 struct ChartRow: View {
     let rank: Int
     let song: TrackedSong
+    let timeFilter: ChartView.TimeFilter
     let isCurrentlyPlaying: Bool
+    
+    private var playCount: Int {
+        if let startDate = timeFilter.startDate {
+            return song.playsInPeriod(since: startDate).count
+        } else {
+            return song.totalPlayCount
+        }
+    }
+    
+    private var playCountBreakdown: (realTime: Int, sync: Int, estimated: Int) {
+        let events = timeFilter.startDate != nil ?
+            song.playsInPeriod(since: timeFilter.startDate!) :
+            song.playEvents
+        
+        let realTime = events.filter { $0.source == .realTime }.count
+        let sync = events.filter { $0.source == .systemSync }.count
+        let estimated = events.filter { $0.source == .estimated }.count
+        
+        return (realTime, sync, estimated)
+    }
     
     var body: some View {
         HStack(spacing: 12) {
@@ -152,7 +178,7 @@ struct ChartRow: View {
                 .foregroundColor(.secondary)
                 .frame(width: 50, alignment: .leading)
             
-            // Album artwork - Updated to use file system
+            // Album artwork
             if let artwork = song.albumArtwork {
                 Image(uiImage: artwork)
                     .resizable()
@@ -183,9 +209,37 @@ struct ChartRow: View {
                     .lineLimit(1)
                 
                 HStack {
-                    Text("\(song.totalPlayCount) plays")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    // Play count with breakdown
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(playCount) plays")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        // Show breakdown for detailed view
+                        let breakdown = playCountBreakdown
+                        if breakdown.realTime > 0 || breakdown.sync > 0 {
+                            HStack(spacing: 4) {
+                                if breakdown.realTime > 0 {
+                                    Label("\(breakdown.realTime)", systemImage: "circle.fill")
+                                        .font(.caption2)
+                                        .foregroundColor(.green)
+                                        .labelStyle(.titleAndIcon)
+                                }
+                                if breakdown.sync > 0 {
+                                    Label("\(breakdown.sync)", systemImage: "arrow.clockwise")
+                                        .font(.caption2)
+                                        .foregroundColor(.blue)
+                                        .labelStyle(.titleAndIcon)
+                                }
+                                if breakdown.estimated > 0 {
+                                    Label("\(breakdown.estimated)", systemImage: "questionmark")
+                                        .font(.caption2)
+                                        .foregroundColor(.gray)
+                                        .labelStyle(.titleAndIcon)
+                                }
+                            }
+                        }
+                    }
                     
                     Spacer()
                     
@@ -200,19 +254,14 @@ struct ChartRow: View {
             
             // Currently playing indicator
             if isCurrentlyPlaying {
-                Image(systemName: "waveform")
-                    .foregroundColor(.green)
-                    .symbolEffect(.pulse)
-            }
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(isCurrentlyPlaying ? Color.accentColor.opacity(0.1) : Color(UIColor.secondarySystemBackground))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(isCurrentlyPlaying ? Color.accentColor : Color.clear, lineWidth: 2)
-        )
-    }
-}
+                VStack {
+                    Image(systemName: "waveform")
+                        .foregroundColor(.green)
+                        .symbolEffect(.pulse)
+                    
+                    // Show if real-time tracking is active
+                    if tracker.playbackMonitor.isTracking {
+                        Image(systemName: "record.circle")
+                            .font(.caption2)
+                            .foregroundColor(.red)
+                    }

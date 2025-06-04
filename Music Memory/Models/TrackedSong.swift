@@ -8,17 +8,31 @@ final class TrackedSong {
     var title: String
     var artist: String
     var albumTitle: String?
-    var artworkFileName: String? // Store filename instead of data
-    var baselinePlayCount: Int
-    var localPlayCount: Int
+    var artworkFileName: String?
+    var duration: TimeInterval
+    var lastSystemPlayCount: Int
+    var lastSyncTimestamp: Date
     var lastKnownRank: Int?
     var previousRank: Int?
     
     @Relationship(deleteRule: .cascade, inverse: \PlayEvent.song)
     var playEvents: [PlayEvent] = []
     
+    // Computed properties
     var totalPlayCount: Int {
-        baselinePlayCount + localPlayCount
+        playEvents.count
+    }
+    
+    var realTimePlayCount: Int {
+        playEvents.filter { $0.source == .realTime }.count
+    }
+    
+    var systemSyncPlayCount: Int {
+        playEvents.filter { $0.source == .systemSync }.count
+    }
+    
+    var estimatedPlayCount: Int {
+        playEvents.filter { $0.source == .estimated }.count
     }
     
     init(persistentID: UInt64,
@@ -26,20 +40,23 @@ final class TrackedSong {
          artist: String,
          albumTitle: String? = nil,
          artworkFileName: String? = nil,
-         baselinePlayCount: Int = 0) {
+         duration: TimeInterval = 0,
+         systemPlayCount: Int = 0) {
         self.persistentID = persistentID
         self.title = title
         self.artist = artist
         self.albumTitle = albumTitle
         self.artworkFileName = artworkFileName
-        self.baselinePlayCount = baselinePlayCount
-        self.localPlayCount = 0
+        self.duration = duration
+        self.lastSystemPlayCount = systemPlayCount
+        self.lastSyncTimestamp = Date()
         self.lastKnownRank = nil
         self.previousRank = nil
     }
     
-    func incrementPlayCount() {
-        localPlayCount += 1
+    func updateSystemPlayCount(_ newCount: Int) {
+        lastSystemPlayCount = newCount
+        lastSyncTimestamp = Date()
     }
     
     func updateRank(_ newRank: Int) {
@@ -58,6 +75,11 @@ final class TrackedSong {
         } else {
             return .unchanged
         }
+    }
+    
+    // Get recent plays within timeframe
+    func playsInPeriod(since startDate: Date) -> [PlayEvent] {
+        return playEvents.filter { $0.timestamp >= startDate }
     }
     
     // Get artwork from file system
