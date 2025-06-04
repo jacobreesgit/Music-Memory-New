@@ -42,11 +42,10 @@ struct MusicMemoryApp: App {
                         }
                     
                 case .ready:
-                    ContentView()
+                    MainTabView()
                         .environmentObject(tracker)
                         .modelContainer(container)
                         .onAppear {
-                            // Refresh current song state when main view appears
                             refreshTrackerState()
                         }
                 }
@@ -54,34 +53,37 @@ struct MusicMemoryApp: App {
             .onAppear {
                 initializeApp()
             }
+            .onReceive(NotificationCenter.default.publisher(for: .resetToSetup)) { _ in
+                resetToSetup()
+            }
         }
     }
     
     private func initializeApp() {
-        // Check setup status immediately
         let hasPermission = MPMediaLibrary.authorizationStatus() == .authorized
         let hasSeeded = UserDefaults.standard.bool(forKey: "hasSeededLibrary")
         
         print("🔍 App initialization - Permission: \(hasPermission), Seeded: \(hasSeeded)")
         
         if hasPermission && hasSeeded {
-            // Already set up, go directly to ready state
             appState = .ready
         } else {
-            // First time setup needed
             appState = .firstTimeSetup
             
-            // Auto-request permission if needed
             if MPMediaLibrary.authorizationStatus() == .notDetermined {
                 requestMusicLibraryAccess()
             }
         }
     }
     
+    private func resetToSetup() {
+        print("🔄 Resetting app to setup mode")
+        appState = .firstTimeSetup
+    }
+    
     private func checkAndUpdateSetupStatus(isSeeding: Bool) {
         print("🔄 Seeding status changed: \(isSeeding)")
         
-        // Add a small delay to ensure UserDefaults has been written
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             let hasPermission = MPMediaLibrary.authorizationStatus() == .authorized
             let hasSeeded = UserDefaults.standard.bool(forKey: "hasSeededLibrary")
@@ -92,7 +94,6 @@ struct MusicMemoryApp: App {
                 print("✅ Setup complete - transitioning to main app")
                 appState = .ready
                 
-                // Refresh tracker state after transition
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     refreshTrackerState()
                 }
@@ -102,8 +103,6 @@ struct MusicMemoryApp: App {
     
     private func refreshTrackerState() {
         print("🔄 Refreshing tracker state...")
-        
-        // Force update current song state
         tracker.refreshCurrentState()
     }
     
@@ -117,12 +116,10 @@ struct MusicMemoryApp: App {
                     if hasSeeded {
                         appState = .ready
                         
-                        // Refresh tracker state after transition
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                             refreshTrackerState()
                         }
                     }
-                    // If not seeded, stay in setup state to begin seeding
                 }
             }
         }
@@ -153,18 +150,38 @@ struct LoadingView: View {
     }
 }
 
-struct ContentView: View {
+struct MainTabView: View {
     @EnvironmentObject var tracker: NowPlayingTracker
     
     var body: some View {
         ZStack(alignment: .bottom) {
-            ChartView(tracker: tracker)
+            TabView {
+                NavigationView {
+                    ChartView(tracker: tracker)
+                }
+                .tabItem {
+                    Image(systemName: "chart.bar")
+                    Text("Charts")
+                }
+                
+                NavigationView {
+                    SettingsView()
+                }
+                .tabItem {
+                    Image(systemName: "gear")
+                    Text("Settings")
+                }
+            }
             
             NowPlayingBar(tracker: tracker)
-                .padding(.bottom, 20)
+                .padding(.bottom, 90)
         }
         .onAppear {
-            print("📱 ContentView appeared")
+            print("📱 MainTabView appeared")
         }
     }
+}
+
+extension Notification.Name {
+    static let resetToSetup = Notification.Name("resetToSetup")
 }

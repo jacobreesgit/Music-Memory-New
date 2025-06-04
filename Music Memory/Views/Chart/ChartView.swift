@@ -6,7 +6,6 @@ struct ChartView: View {
     @ObservedObject var tracker: NowPlayingTracker
     @State private var timeFilter: TimeFilter = .allTime
     @State private var songs: [TrackedSong] = []
-    @State private var isPerformingMaintenance = false
     
     enum TimeFilter: String, CaseIterable {
         case allTime = "All Time"
@@ -32,80 +31,60 @@ struct ChartView: View {
     }
     
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // Time filter picker
-                Picker("Time Period", selection: $timeFilter) {
-                    ForEach(TimeFilter.allCases, id: \.self) { filter in
-                        Text(filter.rawValue).tag(filter)
-                    }
-                }
-                .pickerStyle(SegmentedPickerStyle())
-                .padding()
-                
-                // Chart list
-                ScrollView {
-                    LazyVStack(spacing: 8) {
-                        ForEach(Array(songs.enumerated()), id: \.element.persistentID) { index, song in
-                            ChartRow(
-                                rank: index + 1,
-                                song: song,
-                                timeFilter: timeFilter,
-                                isCurrentlyPlaying: tracker.currentSong?.persistentID == song.persistentID,
-                                tracker: tracker
-                            )
-                            .transition(.asymmetric(
-                                insertion: .move(edge: .trailing).combined(with: .opacity),
-                                removal: .move(edge: .leading).combined(with: .opacity)
-                            ))
-                        }
-                    }
-                    .padding(.horizontal)
-                    .padding(.bottom, 100) // Space for now playing bar
+        VStack(spacing: 0) {
+            Picker("Time Period", selection: $timeFilter) {
+                ForEach(TimeFilter.allCases, id: \.self) { filter in
+                    Text(filter.rawValue).tag(filter)
                 }
             }
-            .navigationTitle("Music Memory")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItemGroup(placement: .navigationBarTrailing) {
-                    if tracker.isSyncing {
-                        HStack {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                            Text("Syncing")
-                                .font(.caption)
-                        }
+            .pickerStyle(SegmentedPickerStyle())
+            .padding()
+            
+            ScrollView {
+                LazyVStack(spacing: 8) {
+                    ForEach(Array(songs.enumerated()), id: \.element.persistentID) { index, song in
+                        ChartRow(
+                            rank: index + 1,
+                            song: song,
+                            timeFilter: timeFilter,
+                            isCurrentlyPlaying: tracker.currentSong?.persistentID == song.persistentID,
+                            tracker: tracker
+                        )
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .trailing).combined(with: .opacity),
+                            removal: .move(edge: .leading).combined(with: .opacity)
+                        ))
                     }
-                    
-                    Button(action: {
-                        Task {
-                            isPerformingMaintenance = true
-                            await tracker.performMaintenance()
-                            isPerformingMaintenance = false
-                        }
-                    }) {
-                        if isPerformingMaintenance {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                        } else {
-                            Image(systemName: "trash.circle")
-                        }
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 20)
+            }
+        }
+        .navigationTitle("Music Memory")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                if tracker.isSyncing {
+                    HStack {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        Text("Syncing")
+                            .font(.caption)
                     }
-                    .disabled(isPerformingMaintenance)
                 }
             }
-            .onAppear {
+        }
+        .onAppear {
+            fetchSongs()
+        }
+        .onChange(of: timeFilter) { _, _ in
+            withAnimation {
                 fetchSongs()
             }
-            .onChange(of: timeFilter) { _, _ in
-                withAnimation {
-                    fetchSongs()
-                }
-            }
-            .onChange(of: tracker.currentSong) { _, _ in
-                withAnimation {
-                    fetchSongs()
-                }
+        }
+        .onChange(of: tracker.currentSong) { _, _ in
+            withAnimation {
+                fetchSongs()
             }
         }
     }
@@ -114,25 +93,20 @@ struct ChartView: View {
         do {
             var allSongs = try modelContext.fetch(FetchDescriptor<TrackedSong>())
             
-            // Filter and sort based on time filter
             if let startDate = timeFilter.startDate {
-                // Filter songs that have plays in the time period
                 allSongs = allSongs.filter { song in
                     !song.playsInPeriod(since: startDate).isEmpty
                 }
                 
-                // Sort by plays within the time period
                 allSongs.sort { song1, song2 in
                     let song1Plays = song1.playsInPeriod(since: startDate).count
                     let song2Plays = song2.playsInPeriod(since: startDate).count
                     return song1Plays > song2Plays
                 }
             } else {
-                // Sort by total play count for all time
                 allSongs.sort { $0.totalPlayCount > $1.totalPlayCount }
             }
             
-            // Update rankings
             for (index, song) in allSongs.enumerated() {
                 song.updateRank(index + 1)
             }
@@ -174,13 +148,11 @@ struct ChartRow: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            // Rank
             Text("#\(rank)")
                 .font(.title2.bold())
                 .foregroundColor(.secondary)
                 .frame(width: 50, alignment: .leading)
             
-            // Album artwork
             if let artwork = song.albumArtwork {
                 Image(uiImage: artwork)
                     .resizable()
@@ -197,7 +169,6 @@ struct ChartRow: View {
                     )
             }
             
-            // Song info
             VStack(alignment: .leading, spacing: 4) {
                 Text(song.title)
                     .font(.headline)
@@ -211,13 +182,11 @@ struct ChartRow: View {
                     .lineLimit(1)
                 
                 HStack {
-                    // Play count with breakdown
                     VStack(alignment: .leading, spacing: 2) {
                         Text("\(playCount) plays")
                             .font(.caption)
                             .foregroundColor(.secondary)
                         
-                        // Show breakdown for detailed view
                         let breakdown = playCountBreakdown
                         if breakdown.realTime > 0 || breakdown.sync > 0 {
                             HStack(spacing: 4) {
@@ -245,7 +214,6 @@ struct ChartRow: View {
                     
                     Spacer()
                     
-                    // Rank movement
                     Text(song.rankMovement.symbol)
                         .font(.caption.bold())
                         .foregroundColor(song.rankMovement.color)
@@ -254,14 +222,12 @@ struct ChartRow: View {
             
             Spacer()
             
-            // Currently playing indicator
             if isCurrentlyPlaying {
                 VStack {
                     Image(systemName: "waveform")
                         .foregroundColor(.green)
                         .symbolEffect(.pulse)
                     
-                    // Show if real-time tracking is active
                     if tracker.playbackMonitor.isTracking {
                         Image(systemName: "record.circle")
                             .font(.caption2)

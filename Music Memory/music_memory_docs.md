@@ -28,6 +28,8 @@ Music Memory is an iOS app that creates personal music charts by tracking listen
 - **Artwork Management**: Efficient local storage of album artwork
 - **Push Notifications**: Alerts for significant chart movements
 - **Time-based Analytics**: All-time, weekly, monthly, and yearly views
+- **Tab-based Interface**: Separate Charts and Settings tabs for better organization
+- **Database Management**: Built-in maintenance and data reset capabilities
 
 ### Key Value Propositions
 1. **Complete Coverage**: Tracks music whether app is open or closed
@@ -35,6 +37,7 @@ Music Memory is an iOS app that creates personal music charts by tracking listen
 3. **Rich Data**: Detailed tracking with completion percentages and durations
 4. **Visual Feedback**: Clear indicators of tracking sources and reliability
 5. **Privacy-Focused**: All data stored locally on device
+6. **User Control**: Full data management through dedicated settings interface
 
 ---
 
@@ -49,9 +52,11 @@ Music Memory is an iOS app that creates personal music charts by tracking listen
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────┐  │
 │  │   UI Layer      │  │  Business Logic │  │ Data Layer  │  │
 │  │                 │  │                 │  │             │  │
-│  │ • ChartView     │  │ • NowPlayingTracker │ • SwiftData │  │
-│  │ • SetupView     │  │ • PlaybackMonitor   │ • Models    │  │
-│  │ • NowPlayingBar │  │ • SystemSyncManager │ • FileSystem│  │
+│  │ • MainTabView   │  │ • NowPlayingTracker │ • SwiftData │  │
+│  │ • ChartView     │  │ • PlaybackMonitor   │ • Models    │  │
+│  │ • SettingsView  │  │ • SystemSyncManager │ • FileSystem│  │
+│  │ • SetupView     │  │ • ArtworkManager    │             │  │
+│  │ • NowPlayingBar │  │                     │             │  │
 │  └─────────────────┘  └─────────────────┘  └─────────────┘  │
 ├─────────────────────────────────────────────────────────────┤
 │                    iOS System Integration                   │
@@ -66,18 +71,21 @@ Music Memory is an iOS app that creates personal music charts by tracking listen
 ### Component Responsibilities
 
 #### **UI Layer**
-- **ChartView**: Main interface displaying ranked music charts
+- **MainTabView**: Tab-based navigation container with Charts and Settings tabs
+- **ChartView**: Main interface displaying ranked music charts with time filtering
+- **SettingsView**: Database management, maintenance, and app information
 - **SetupView**: Onboarding flow for permissions and library seeding
-- **NowPlayingBar**: Current song display with real-time status
+- **NowPlayingBar**: Current song display with real-time status (overlays tab bar)
 
 #### **Business Logic Layer**
 - **NowPlayingTracker**: Central coordinator managing all tracking operations
 - **PlaybackMonitor**: Real-time playback tracking and completion detection
 - **SystemSyncManager**: Background sync with iOS system play counts
+- **ArtworkManager**: File system management for album artwork
 
 #### **Data Layer**
 - **SwiftData Models**: Core data persistence with CloudKit support
-- **ArtworkManager**: File system management for album artwork
+- **File System**: Local artwork storage and management
 - **UserDefaults**: App state and configuration storage
 
 ---
@@ -252,7 +260,7 @@ iOS MediaPlayer Framework
 ```
 Music Memory/
 ├── App/
-│   ├── Music_MemoryApp.swift          // App entry point, setup flow
+│   ├── Music_MemoryApp.swift          // App entry point, tab structure, setup flow
 │   └── Info.plist                     // Permissions, background modes
 │
 ├── Models/
@@ -269,11 +277,13 @@ Music Memory/
 │
 ├── Views/
 │   ├── Chart/
-│   │   └── ChartView.swift            // Main chart interface
+│   │   └── ChartView.swift            // Main chart interface (Charts tab)
 │   ├── NowPlaying/
-│   │   └── NowPlayingBar.swift        // Current song display
-│   └── Setup/
-│       └── SetupView.swift            // Onboarding flow
+│   │   └── NowPlayingBar.swift        // Current song display (overlay)
+│   ├── Setup/
+│   │   └── SetupView.swift            // Onboarding flow
+│   └── Settings/
+│       └── SettingsView.swift         // Settings tab with management tools
 │
 └── Resources/
     ├── Assets.xcassets/               // App icons, colors
@@ -284,30 +294,37 @@ Music Memory/
 
 #### **Music_MemoryApp.swift**
 - App lifecycle management
+- Tab-based navigation setup
 - Setup flow coordination
 - Permission state tracking
+- Reset-to-setup functionality via notifications
 - Transition between setup and main app
-- **Current song state refresh after setup completion**
+
+#### **MainTabView (within Music_MemoryApp.swift)**
+- Tab container with Charts and Settings tabs
+- Now Playing Bar overlay positioning
+- Environment object propagation
+
+#### **SettingsView.swift**
+- App information display
+- Database maintenance operations
+- Complete data deletion with setup reset
+- User-friendly operation descriptions
+- Confirmation dialogs for destructive actions
+
+#### **ChartView.swift**
+- Music chart display and ranking
+- Time-based filtering (All Time, Week, Month, Year)
+- Sync status indicators
+- Clean interface focused on music data
 
 #### **NowPlayingTracker.swift**
 - Central coordinator for all tracking
 - Manages PlaybackMonitor and SystemSyncManager
 - Handles ranking calculations
 - Sends push notifications
-- **Provides refresh methods for current song state**
-- **Ensures consistent state across app transitions**
-
-#### **PlaybackMonitor.swift**
-- Real-time playback observation
-- Completion criteria enforcement
-- Timer-based progress tracking
-- Play event creation
-
-#### **SystemSyncManager.swift**
-- Background play discovery
-- System play count comparison
-- Estimated timestamp distribution
-- New song detection
+- Provides refresh methods for current song state
+- Ensures consistent state across app transitions
 
 ---
 
@@ -316,10 +333,10 @@ Music Memory/
 ### Setup Flow Overview
 
 ```
-App Launch → Permission Check → Library Seeding → State Refresh → Main App
+App Launch → Permission Check → Library Seeding → State Refresh → Main App (Tabs)
      ↓              ↓                ↓               ↓              ↓
- Check Stored   Request Music    Process Songs   Update Current   Start Tracking
- Permissions    Library Access   + Artwork       Song State      + Display Charts
+ Check Stored   Request Music    Process Songs   Update Current   Charts & Settings
+ Permissions    Library Access   + Artwork       Song State      Tabs Available
 ```
 
 ### Detailed Setup Process
@@ -363,7 +380,7 @@ MPMediaLibrary.requestAuthorization { status in
 - Historical `PlayEvent`s with estimated timestamps
 - UserDefaults flag: `hasSeededLibrary = true`
 
-#### **3. State Refresh Phase** [NEW]
+#### **3. State Refresh Phase**
 **Purpose**: Ensure current song state is accurate after setup
 **Process**:
 1. Refresh current song from system music player
@@ -378,7 +395,7 @@ MPMediaLibrary.requestAuthorization { status in
 #### **4. Transition to Main App**
 **Trigger**: Seeding complete + permissions granted + state refreshed
 **Animation**: Smooth fade transition with 0.5s duration
-**Result**: User sees populated chart and current song immediately
+**Result**: User sees populated chart and current song in tab interface immediately
 
 ---
 
@@ -398,12 +415,12 @@ MPMediaLibrary.requestAuthorization { status in
 **Purpose**: Update current song's play count
 **Post-Action**: Refresh current song and playback state
 
-#### **3. Manual Sync**
-**Trigger**: User pulls to refresh (future enhancement)
-**Type**: Full sync
-**Purpose**: User-initiated update
+#### **3. Manual Maintenance** (NEW)
+**Trigger**: User taps "Database Maintenance" in Settings tab
+**Type**: Cleanup operations only (not sync)
+**Purpose**: User-initiated cleanup of old data
 
-#### **4. Setup Completion Sync** [NEW]
+#### **4. Setup Completion Sync**
 **Trigger**: Library seeding completion
 **Type**: State refresh only
 **Purpose**: Initialize current song tracking
@@ -421,7 +438,7 @@ MPMediaLibrary.requestAuthorization { status in
      - Update lastSystemPlayCount and lastSyncTimestamp
 3. Save all changes to SwiftData
 4. Update UserDefaults: lastFullSyncDate
-5. Refresh current song state [NEW]
+5. Refresh current song state
 ```
 
 #### **Quick Sync Process**
@@ -430,7 +447,7 @@ MPMediaLibrary.requestAuthorization { status in
 2. Check if playCount increased
 3. Create PlayEvents for new plays
 4. Update song's sync timestamp
-5. Refresh current song and playback state [NEW]
+5. Refresh current song and playback state
 ```
 
 #### **Timestamp Distribution Algorithm**
@@ -457,7 +474,24 @@ for i in 0..<playsToCreate {
 
 ## User Interface
 
-### Main Chart View
+### Tab-Based Structure
+
+#### **Main Interface Layout**
+```
+┌─────────────────────────────────────┐
+│ [Charts Tab]      [Settings Tab]    │ ← Tab Bar
+├─────────────────────────────────────┤
+│                                     │
+│         ACTIVE TAB CONTENT          │
+│                                     │
+│                                     │
+├─────────────────────────────────────┤
+│ [🎵] Currently Playing Song         │ ← Now Playing Bar (Overlay)
+│      Artist • [▶]                  │
+└─────────────────────────────────────┘
+```
+
+### Charts Tab (ChartView)
 
 #### **Layout Structure**
 ```
@@ -475,9 +509,6 @@ for i in 0..<playsToCreate {
 │          32 plays          [🔄]     │
 │ ...                                 │
 └─────────────────────────────────────┘
-│ [🎵] Currently Playing Song         │ ← Now Playing Bar
-│      Artist • [▶]                  │
-└─────────────────────────────────────┘
 ```
 
 #### **Chart Row Components**
@@ -494,6 +525,46 @@ Visual breakdown of play sources:
 - 🔵 **Sync plays**: Blue sync arrow + count  
 - ⚪ **Estimated plays**: Gray question mark + count
 
+### Settings Tab (SettingsView)
+
+#### **Layout Structure**
+```
+┌─────────────────────────────────────┐
+│             Settings                │ ← Navigation Title
+├─────────────────────────────────────┤
+│ [🎵] Music Memory                   │ ← App Info Section
+│      Personal Music Charts          │
+│      Version 1.0                    │
+├─────────────────────────────────────┤
+│ Database Management                 │ ← Management Section
+│                                     │
+│ [🔧] Database Maintenance           │ ← Maintenance Button
+│      Clean up old play events...   │
+│                                     │
+│ [🗑] Delete All Data               │ ← Delete Button
+│      Permanently erase all data... │
+└─────────────────────────────────────┘
+```
+
+#### **Settings Sections**
+
+**App Information:**
+- App icon and branding
+- App name and description
+- Version information
+
+**Database Management:**
+- **Database Maintenance Button**:
+  - Description: "Clean up old play events (>1 year), remove unused album artwork, and delete songs with no plays"
+  - Confirmation: "Are you sure you want to run database maintenance?"
+  - Visual: Blue wrench icon with progress indicator during operation
+
+- **Delete All Data Button**:
+  - Description: "Permanently erase all Music Memory data and return to setup screen"
+  - Confirmation: "Are you absolutely sure you want to delete all data?"
+  - Visual: Red trash icon with progress indicator during operation
+  - Action: Complete data wipe + return to setup flow
+
 ### Time Filtering
 
 #### **Filter Options**
@@ -508,7 +579,7 @@ Rankings recalculate based on selected time period:
 - Rank movements show period-specific changes
 - Play counts reflect filtered timeframe only
 
-### Now Playing Bar
+### Now Playing Bar (Overlay)
 
 #### **Information Display**
 - **Artwork**: Current song's album art (50x50px)
@@ -517,39 +588,120 @@ Rankings recalculate based on selected time period:
   - 🌊 **Waveform**: Song is playing
   - 🔴 **Record dot**: Real-time tracking active
 
-#### **Interactive Features** (Future)
-- Tap to expand full player
-- Swipe for quick actions
-- Long press for song options
+#### **Positioning**
+- Overlays the tab bar at bottom of screen
+- Positioned 90px from bottom to account for tab bar height
+- Visible across all tabs for consistent access
 
 ---
 
 ## Technical Implementation
 
-### Real-Time Tracking Architecture
+### Tab Navigation Architecture
 
-#### **PlaybackMonitor Class Design**
+#### **MainTabView Structure**
 ```swift
-class PlaybackMonitor: ObservableObject {
-    // State Management
-    @Published var isTracking: Bool
-    private var currentTrackingItem: MPMediaItem?
-    private var playbackStartTime: Date?
-    private var totalPlaybackTime: TimeInterval
-    
-    // Timing Infrastructure
-    private var playbackTimer: Timer?
-    private let timerInterval: TimeInterval = 1.0
-    
-    // Completion Logic
-    private let minimumPlayTime: TimeInterval = 30.0
-    private let minimumCompletionPercentage: Double = 0.5
-    private let maximumRequiredTime: TimeInterval = 240.0
+struct MainTabView: View {
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            TabView {
+                // Charts Tab
+                NavigationView {
+                    ChartView(tracker: tracker)
+                }
+                .tabItem {
+                    Image(systemName: "chart.bar")
+                    Text("Charts")
+                }
+                
+                // Settings Tab
+                NavigationView {
+                    SettingsView()
+                }
+                .tabItem {
+                    Image(systemName: "gear")
+                    Text("Settings")
+                }
+            }
+            
+            // Overlaid Now Playing Bar
+            NowPlayingBar(tracker: tracker)
+                .padding(.bottom, 90)
+        }
+    }
 }
 ```
 
-#### **State Management and Refresh** [NEW]
+### Reset-to-Setup System
 
+#### **Notification-Based Reset**
+```swift
+// Extension for custom notification
+extension Notification.Name {
+    static let resetToSetup = Notification.Name("resetToSetup")
+}
+
+// In main app - listening for reset
+.onReceive(NotificationCenter.default.publisher(for: .resetToSetup)) { _ in
+    resetToSetup()
+}
+
+// In settings - triggering reset
+NotificationCenter.default.post(name: .resetToSetup, object: nil)
+```
+
+#### **Reset Process**
+1. User confirms data deletion in Settings
+2. All TrackedSong records deleted (cascades to PlayEvents)
+3. All artwork files removed from storage
+4. UserDefaults cleared (setup flags, sync timestamps)
+5. Notification posted to trigger app state change
+6. App returns to setup flow automatically
+
+### Database Management Operations
+
+#### **Maintenance Operation**
+```swift
+func performMaintenance() async {
+    // 1. Clean up old play events (>1 year)
+    await cleanupOldPlayEvents()
+    
+    // 2. Remove unused album artwork files
+    await cleanupUnusedArtwork()
+    
+    // 3. Delete songs with no plays (>6 months inactive)
+    await cleanupUnusedSongs()
+}
+```
+
+#### **Complete Data Deletion**
+```swift
+func deleteAllData() async {
+    // 1. Delete all TrackedSong records (cascade deletes PlayEvents)
+    let songs = try modelContext.fetch(FetchDescriptor<TrackedSong>())
+    for song in songs {
+        // Clean up associated artwork file
+        if let fileName = song.artworkFileName {
+            ArtworkManager.shared.deleteArtwork(for: fileName)
+        }
+        modelContext.delete(song)
+    }
+    
+    // 2. Save database changes
+    try modelContext.save()
+    
+    // 3. Clear app configuration
+    UserDefaults.standard.removeObject(forKey: "hasSeededLibrary")
+    UserDefaults.standard.removeObject(forKey: "lastFullSyncDate")
+    
+    // 4. Trigger app reset to setup mode
+    NotificationCenter.default.post(name: .resetToSetup, object: nil)
+}
+```
+
+### State Management and Refresh
+
+#### **Current Song State Refresh**
 ```swift
 // NowPlayingTracker refresh methods
 func refreshCurrentState() {
@@ -573,95 +725,8 @@ private func updatePlaybackState() {
 - App setup completion
 - App foreground transition
 - After sync operations
-- Manual refresh calls
-
-#### **Notification Observers**
-```swift
-// Song changes
-NotificationCenter.default.publisher(for: .MPMusicPlayerControllerNowPlayingItemDidChange)
-
-// Playback state changes  
-NotificationCenter.default.publisher(for: .MPMusicPlayerControllerPlaybackStateDidChange)
-
-// App lifecycle
-NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)
-```
-
-#### **Timer-Based Progress Tracking**
-- **Frequency**: 1-second intervals
-- **Purpose**: Accumulate playback time, check completion criteria
-- **Efficiency**: Only runs during active playback
-- **Accuracy**: Handles pauses, seeks, and interruptions
-
-### Artwork Management System
-
-#### **Storage Strategy**
-```swift
-// File locations
-Documents/Artwork/
-├── 1234567890.jpg    // {persistentID}.jpg
-├── 1234567891.jpg
-└── ...
-```
-
-#### **Optimization Techniques**
-- **Compression**: 80% JPEG quality for size vs. quality balance
-- **Consistent sizing**: 300x300px for uniformity
-- **Async loading**: Background threads for file operations
-- **Memory management**: Load on-demand, cache in memory briefly
-
-#### **Cleanup Process**
-```swift
-// Weekly maintenance
-1. Get all tracked song artwork filenames
-2. Scan artwork directory for orphaned files
-3. Delete files not referenced by any song
-4. Log cleanup statistics
-```
-
-### SwiftData Integration
-
-#### **Schema Design**
-```swift
-let schema = Schema([
-    TrackedSong.self,
-    PlayEvent.self
-])
-
-let config = ModelConfiguration(
-    schema: schema,
-    isStoredInMemoryOnly: false,
-    allowsSave: true
-)
-```
-
-#### **Query Patterns**
-```swift
-// Fetch songs by rank
-FetchDescriptor<TrackedSong>(
-    sortBy: [SortDescriptor(\.totalPlayCount, order: .reverse)]
-)
-
-// Fetch plays in time period
-FetchDescriptor<PlayEvent>(
-    predicate: #Predicate { event in
-        event.timestamp >= startDate
-    }
-)
-
-// Find specific song
-FetchDescriptor<TrackedSong>(
-    predicate: #Predicate { song in
-        song.persistentID == targetID
-    }
-)
-```
-
-#### **Performance Optimizations**
-- **Batch operations**: Process in chunks of 50-100 records
-- **Lazy loading**: Use `@Relationship` for related data
-- **Indexing**: Unique constraints on persistentID
-- **Memory management**: Explicit save points, avoid large result sets
+- After data operations
+- Tab switches (automatic via environment)
 
 ---
 
@@ -669,63 +734,66 @@ FetchDescriptor<TrackedSong>(
 
 ### Common Issues & Solutions
 
-#### **Problem: Missing Plays**
-**Symptoms**: Songs played but not recorded in charts
+#### **Problem: Tab Interface Not Showing**
+**Symptoms**: App shows blank screen or single view instead of tabs
 **Possible Causes**:
-1. App not running when song played
-2. Completion criteria not met (too short/low percentage)
-3. System sync hasn't occurred yet
+1. Setup not completed properly
+2. App state stuck in initializing or setup mode
+3. Missing environment objects
 
 **Solutions**:
-1. Force sync by closing/reopening app
-2. Check minimum listening requirements (30s + 50%)
-3. Verify music library permissions
-4. Check song source (streaming vs. downloaded)
+1. Force close and reopen app to reset state
+2. Check UserDefaults for `hasSeededLibrary` flag
+3. Verify music library permissions in Settings app
+4. Use "Delete All Data" to restart from setup
 
-#### **Problem: Blank Now Playing After Setup** [FIXED]
-**Symptoms**: Now playing bar shows "Not Playing" even when music is playing after setup completion
-**Root Cause**: Current song state not refreshed after transition from setup to main app
-
-**Solution Applied**:
-1. Added `refreshCurrentState()` method to `NowPlayingTracker`
-2. App now automatically refreshes current song state after setup completion
-3. State refresh also occurs on app foreground and after sync operations
-
-#### **Problem: Duplicate Plays**
-**Symptoms**: Same song showing multiple plays simultaneously
+#### **Problem: Settings Tab Empty or Crashing**
+**Symptoms**: Settings tab shows blank screen or crashes when opened
 **Possible Causes**:
-1. Both real-time and system sync detecting same play
-2. App crash during play event creation
-3. Timer overlap in PlaybackMonitor
+1. Missing model context environment
+2. SwiftData initialization issues
+3. File system permission problems
 
 **Solutions**:
-1. Check PlayEvent timestamps for duplicates
-2. Implement duplicate detection in sync process
-3. Add state guards in PlaybackMonitor
+1. Verify environment objects are properly passed to SettingsView
+2. Check modelContainer setup in app initialization
+3. Restart app to reinitialize SwiftData context
 
-#### **Problem: Artwork Not Loading**
-**Symptoms**: Gray placeholders instead of album art
+#### **Problem: Now Playing Bar Not Visible**
+**Symptoms**: Current song display missing from bottom of screen
 **Possible Causes**:
-1. Files deleted from Documents/Artwork/
-2. Permission issues with file system
-3. Corrupted artwork files
+1. Tab bar height calculations incorrect
+2. ZStack positioning issues
+3. Environment object not propagated
 
 **Solutions**:
-1. Trigger artwork re-download during next sync
-2. Check file permissions in Documents directory
-3. Clear artwork cache and re-seed library
+1. Check padding values (should be 90px from bottom)
+2. Verify ZStack alignment is `.bottom`
+3. Ensure tracker environment object is available
 
-#### **Problem: Rankings Not Updating**
-**Symptoms**: Charts show stale data despite new plays
+#### **Problem: Database Maintenance Not Working**
+**Symptoms**: Maintenance button shows progress but no actual cleanup occurs
 **Possible Causes**:
-1. SwiftData context not saving properly
-2. UI not refreshing after data changes
-3. Ranking calculation logic errors
+1. File system permission issues
+2. SwiftData context not saving properly
+3. Artwork directory access problems
 
 **Solutions**:
-1. Add explicit save calls after play events
-2. Verify @Published properties trigger UI updates
-3. Debug ranking algorithm with logging
+1. Check file system permissions for Documents directory
+2. Add explicit save calls after maintenance operations
+3. Verify ArtworkManager has proper directory access
+
+#### **Problem: Data Deletion Doesn't Reset App**
+**Symptoms**: Data deleted but app doesn't return to setup screen
+**Possible Causes**:
+1. Notification system not working
+2. UserDefaults not cleared properly
+3. App state not responding to reset signal
+
+**Solutions**:
+1. Force close app after data deletion
+2. Manually clear all app data through iOS Settings
+3. Reinstall app if notification system fails
 
 ### Debug Information
 
@@ -739,58 +807,104 @@ FetchDescriptor<TrackedSong>(
 ❌ // Errors and failures
 ⏭ // Skipped/filtered content
 🔍 // State checks and validation
+⚙️ // Settings and maintenance operations
+🗑 // Data deletion operations
 ```
 
 #### **Key Metrics to Monitor**
-- Total tracked songs count
-- Play events count by source type
-- Last sync timestamp and success status
-- Real-time tracking active duration
-- Artwork cache hit/miss ratio
-- **Current song refresh frequency and success rate** [NEW]
+- Tab navigation state and transitions
+- Settings operations success/failure rates
+- Data deletion and reset completion
+- Maintenance operation effectiveness
+- File system operation results
+- UserDefaults state consistency
+- Notification system reliability
 
 ---
 
 ## Future Enhancements
 
 ### Near-Term Improvements
-1. **Pull-to-refresh functionality** for manual sync
-2. **Song detail views** with play history charts
-3. **Export capabilities** for personal data
-4. **Advanced filtering** by artist, album, genre
-5. **Improved state management** for edge cases
+1. **Additional Settings Options**:
+   - Export data functionality
+   - Import/backup options
+   - Advanced maintenance scheduling
+   - Detailed operation logs
+
+2. **Enhanced Tab Interface**:
+   - Statistics tab with detailed analytics
+   - History tab with timeline view
+   - Search functionality across tabs
+
+3. **Improved Maintenance**:
+   - Selective cleanup options
+   - Maintenance scheduling
+   - Storage usage analytics
+   - Detailed cleanup reports
 
 ### Long-Term Features
-1. **Social sharing** of personal charts
-2. **Mood-based analytics** using song metadata
-3. **Listening streak tracking** and achievements
-4. **Integration with external services** (Last.fm, etc.)
-5. **Apple Watch companion app**
+1. **Advanced Settings**:
+   - Customizable completion criteria
+   - Advanced filtering options
+   - Theme and appearance settings
+   - Notification preferences
+
+2. **Enhanced User Control**:
+   - Partial data deletion options
+   - Selective sync settings
+   - Custom time ranges
+   - Manual play editing
+
+3. **Professional Features**:
+   - Data export in multiple formats
+   - Integration with external services
+   - Advanced analytics and insights
+   - Sharing capabilities
 
 ### Technical Debt
-1. **Enhanced error handling** for network failures
-2. **Background app refresh optimization**
-3. **Memory usage optimization** for large libraries
-4. **Automated testing suite** for critical paths
-5. **Performance monitoring** and analytics
+1. **Enhanced Error Handling**:
+   - Better error recovery for failed operations
+   - User-friendly error messages
+   - Automatic retry mechanisms
+   - Graceful degradation
+
+2. **Performance Optimization**:
+   - Lazy loading for large datasets
+   - Improved memory management
+   - Faster tab transitions
+   - Optimized database operations
+
+3. **Testing and Reliability**:
+   - Automated testing for critical paths
+   - Unit tests for all managers
+   - UI testing for tab navigation
+   - Stress testing for large libraries
 
 ---
 
 ## Conclusion
 
-Music Memory represents a sophisticated approach to personal music analytics, combining real-time tracking with intelligent background synchronization. The three-tier detection system ensures comprehensive coverage while maintaining data accuracy and user privacy.
+Music Memory now features a professional tab-based interface that separates music analytics from app management, providing users with intuitive access to both chart viewing and powerful database management tools.
 
-The app's architecture balances technical complexity with user simplicity, providing rich insights without overwhelming the interface. By following industry standards for play detection and maintaining compatibility with established music tracking conventions, Music Memory offers reliable, meaningful data about personal listening habits.
+The app's evolution from a single-view interface to a structured tab system represents a significant improvement in user experience and app organization. The dedicated Settings tab puts users in complete control of their data, with clear descriptions of operations and robust safety measures through confirmation dialogs.
 
-Recent improvements to state management ensure a seamless user experience from setup through daily use, with automatic refresh mechanisms that maintain accurate current song display across all app transitions.
+Key improvements include:
 
-Key strengths include complete play coverage regardless of app state, detailed source attribution for transparency, efficient local storage that respects user privacy, and robust state management that handles edge cases gracefully. The modular design allows for future enhancements while maintaining core functionality stability.
+**User Interface**: Clean tab separation allows users to focus on music charts while having easy access to management tools. The overlaid Now Playing Bar maintains consistency across tabs without cluttering the interface.
 
-Music Memory transforms passive music consumption into active insight, helping users understand and appreciate their musical journey through quantified, personal analytics.
+**Data Management**: Comprehensive database management through user-friendly settings, with clear descriptions that explain technical operations in accessible terms. Complete data reset capability allows users to start fresh without app reinstallation.
+
+**Safety and Control**: Multiple confirmation dialogs prevent accidental data loss, while detailed descriptions help users understand exactly what each operation does before proceeding.
+
+**Technical Architecture**: Notification-based reset system ensures clean state transitions, while the tab structure provides a scalable foundation for future feature additions.
+
+The three-tier play detection system continues to provide comprehensive music tracking, while the new interface makes the app more approachable for users who want powerful analytics without technical complexity.
+
+Music Memory successfully balances sophisticated tracking capabilities with intuitive user control, making personal music analytics accessible to everyone while maintaining the technical depth needed for accurate, meaningful insights.
 
 ---
 
-*Documentation Version: 1.1*  
+*Documentation Version: 2.0*  
 *Last Updated: June 2025*  
 *App Version: 1.0*  
-*Latest Changes: Fixed blank now playing issue after setup completion*
+*Major Changes: Complete interface restructure with tab-based navigation and dedicated settings management*
