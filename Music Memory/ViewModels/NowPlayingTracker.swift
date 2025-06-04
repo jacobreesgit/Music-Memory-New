@@ -199,7 +199,7 @@ class NowPlayingTracker: ObservableObject {
     }
     
     private func checkRankChangeAndNotify(for song: TrackedSong) async {
-        // Recalculate rankings
+        // Recalculate rankings based on total play count (system + tracked)
         let descriptor = FetchDescriptor<TrackedSong>(
             sortBy: [SortDescriptor(\.totalPlayCount, order: .reverse)]
         )
@@ -271,7 +271,7 @@ class NowPlayingTracker: ObservableObject {
         }
     }
     
-    
+    // UPDATED: Simplified seedLibrary - NO historical PlayEvents created
     func seedLibrary() async {
         print("🌱 Starting library seed...")
         
@@ -334,7 +334,8 @@ class NowPlayingTracker: ObservableObject {
                     artworkFileName = ArtworkManager.shared.save(artwork: image, for: persistentID)
                 }
                 
-                // Create new tracked song
+                // UPDATED: Create new tracked song with system play count only
+                // NO PlayEvents are created for historical data
                 let trackedSong = TrackedSong(
                     persistentID: persistentID,
                     title: item.title ?? "Unknown Title",
@@ -342,18 +343,13 @@ class NowPlayingTracker: ObservableObject {
                     albumTitle: item.albumTitle,
                     artworkFileName: artworkFileName,
                     duration: item.playbackDuration,
-                    systemPlayCount: item.playCount
+                    systemPlayCount: item.playCount  // Store the system count, don't create PlayEvents
                 )
                 
                 modelContext.insert(trackedSong)
                 
-                // Create historical play events if the song has play count
-                if item.playCount > 0 {
-                    await createHistoricalPlayEvents(for: trackedSong, playCount: item.playCount)
-                }
-                
                 processedCount += 1
-                print("➕ Added: \(trackedSong.title) by \(trackedSong.artist) (\(item.playCount) plays)")
+                print("➕ Added: \(trackedSong.title) by \(trackedSong.artist) (system: \(item.playCount) plays)")
                 
                 // Save every 50 songs to avoid memory issues
                 if processedCount % 50 == 0 {
@@ -364,9 +360,10 @@ class NowPlayingTracker: ObservableObject {
                 print("❌ Error checking/adding song: \(error)")
             }
             
-            // Small delay to allow UI updates
-            if index % 10 == 0 {
-                try? await Task.sleep(nanoseconds: 10_000_000) // 0.01 seconds
+            // FIXED: Update UI more frequently for smooth counting
+            // Small delay every song to allow UI updates without affecting performance
+            if index % 1 == 0 {
+                try? await Task.sleep(nanoseconds: 1_000_000) // 0.001 seconds - very brief
             }
         }
         
@@ -377,6 +374,7 @@ class NowPlayingTracker: ObservableObject {
         do {
             try modelContext.save()
             print("✅ Library seed completed - Added \(processedCount) new songs")
+            print("🎯 Setup will track plays with timestamps starting now")
         } catch {
             print("❌ Error saving seeded library: \(error)")
         }
@@ -394,24 +392,7 @@ class NowPlayingTracker: ObservableObject {
         updatePlaybackState()
     }
     
-    private func createHistoricalPlayEvents(for song: TrackedSong, playCount: Int) async {
-        let now = Date()
-        let yearRange: TimeInterval = 365 * 24 * 60 * 60 // 1 year
-        
-        for _ in 0..<playCount {
-            let randomTimeAgo = TimeInterval.random(in: 0...yearRange)
-            let playTime = now.addingTimeInterval(-randomTimeAgo)
-            
-            let playEvent = PlayEvent(
-                timestamp: playTime,
-                song: song,
-                source: .estimated,
-                songDuration: song.duration > 0 ? song.duration : nil
-            )
-            
-            modelContext.insert(playEvent)
-        }
-    }
+    // REMOVED: createHistoricalPlayEvents function - no longer needed
     
     // MARK: - Maintenance and Cleanup
     
@@ -468,17 +449,19 @@ class NowPlayingTracker: ObservableObject {
     private func cleanupUnusedSongs() async {
         let sixMonthsAgo = Calendar.current.date(byAdding: .month, value: -6, to: Date()) ?? Date()
         
+        // UPDATED: Check both system play count and tracked events
         let descriptor = FetchDescriptor<TrackedSong>(
             predicate: #Predicate { song in
-                song.totalPlayCount == 0
+                song.lastSystemPlayCount == 0 && song.playEvents.isEmpty
             }
         )
         
         do {
             let unplayedSongs = try modelContext.fetch(descriptor)
             let songsToRemove = unplayedSongs.filter { song in
-                // Remove only if no recent activity and no historical plays
-                song.playEvents.isEmpty || song.playEvents.allSatisfy { $0.timestamp < sixMonthsAgo }
+                // Remove only if no system plays AND no recent activity
+                song.lastSystemPlayCount == 0 &&
+                (song.playEvents.isEmpty || song.playEvents.allSatisfy { $0.timestamp < sixMonthsAgo })
             }
             
             print("🗑 Removing \(songsToRemove.count) unused songs")

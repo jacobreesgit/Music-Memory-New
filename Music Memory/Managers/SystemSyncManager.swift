@@ -82,7 +82,7 @@ class SystemSyncManager {
         // Update the system count
         trackedSong.updateSystemPlayCount(currentSystemCount)
         
-        // Create play events for the new plays
+        // Create play events for the new plays with recent timestamps
         let timeSinceLastSync = Date().timeIntervalSince(trackedSong.lastSyncTimestamp)
         await createEstimatedPlayEvents(
             for: trackedSong,
@@ -93,6 +93,7 @@ class SystemSyncManager {
         return newPlaysCount
     }
     
+    // UPDATED: Store system play count without creating historical PlayEvents
     private func addNewSong(item: MPMediaItem) async {
         // Save album artwork to file system
         var artworkFileName: String?
@@ -101,7 +102,7 @@ class SystemSyncManager {
             artworkFileName = ArtworkManager.shared.save(artwork: image, for: item.persistentID)
         }
         
-        // Create tracked song
+        // UPDATED: Create tracked song with system play count, but NO historical PlayEvents
         let trackedSong = TrackedSong(
             persistentID: item.persistentID,
             title: item.title ?? "Unknown Title",
@@ -109,26 +110,24 @@ class SystemSyncManager {
             albumTitle: item.albumTitle,
             artworkFileName: artworkFileName,
             duration: item.playbackDuration,
-            systemPlayCount: item.playCount
+            systemPlayCount: item.playCount  // Store the count, don't create PlayEvents
         )
         
         modelContext.insert(trackedSong)
         
-        // If song already has play count, create historical events
-        if item.playCount > 0 {
-            await createHistoricalPlayEvents(for: trackedSong, playCount: item.playCount)
-        }
-        
-        print("➕ Added new song: \(trackedSong.title) (\(item.playCount) historical plays)")
+        print("➕ Added new song: \(trackedSong.title) (system: \(item.playCount) plays)")
+        print("🎯 Historical plays stored as count only - no fake timestamps created")
     }
     
+    // UPDATED: Only create PlayEvents for recent activity (not historical data)
     private func createEstimatedPlayEvents(for song: TrackedSong, playCount: Int, timeWindow: TimeInterval) async {
-        // Distribute plays across the time window
+        // Only create PlayEvents for plays that happened since last sync
+        // These are real plays that occurred while app was closed
         let now = Date()
         let startTime = now.addingTimeInterval(-timeWindow)
         
         for _ in 0..<playCount {
-            // Distribute plays somewhat randomly across the time window
+            // Distribute plays across the time window since last sync
             let randomOffset = TimeInterval.random(in: 0...timeWindow)
             let playTime = startTime.addingTimeInterval(randomOffset)
             
@@ -141,28 +140,11 @@ class SystemSyncManager {
             
             modelContext.insert(playEvent)
         }
+        
+        print("📊 Created \(playCount) sync PlayEvents for recent activity")
     }
     
-    private func createHistoricalPlayEvents(for song: TrackedSong, playCount: Int) async {
-        // Create historical play events spread over the past
-        let now = Date()
-        let dayRange: TimeInterval = 365 * 24 * 60 * 60 // 1 year ago
-        
-        for _ in 0..<playCount {
-            // Distribute historical plays over past year
-            let randomDaysAgo = TimeInterval.random(in: 0...dayRange)
-            let playTime = now.addingTimeInterval(-randomDaysAgo)
-            
-            let playEvent = PlayEvent(
-                timestamp: playTime,
-                song: song,
-                source: .estimated,
-                songDuration: song.duration > 0 ? song.duration : nil
-            )
-            
-            modelContext.insert(playEvent)
-        }
-    }
+    // REMOVED: createHistoricalPlayEvents function - no longer needed
     
     func quickSync() async {
         // Lightweight sync for app foreground - only check current playing song

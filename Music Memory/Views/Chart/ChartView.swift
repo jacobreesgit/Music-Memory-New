@@ -89,24 +89,35 @@ struct ChartView: View {
         }
     }
     
+    // UPDATED: Proper filtering logic that separates All Time from time-filtered views
     private func fetchSongs() {
         do {
             var allSongs = try modelContext.fetch(FetchDescriptor<TrackedSong>())
             
             if let startDate = timeFilter.startDate {
+                // UPDATED: Time-filtered views only show songs with actual PlayEvents in the period
                 allSongs = allSongs.filter { song in
-                    !song.playsInPeriod(since: startDate).isEmpty
+                    song.playCountInPeriod(since: startDate) > 0
                 }
                 
+                // Sort by actual plays in the time period
                 allSongs.sort { song1, song2 in
-                    let song1Plays = song1.playsInPeriod(since: startDate).count
-                    let song2Plays = song2.playsInPeriod(since: startDate).count
+                    let song1Plays = song1.playCountInPeriod(since: startDate)
+                    let song2Plays = song2.playCountInPeriod(since: startDate)
                     return song1Plays > song2Plays
                 }
             } else {
+                // UPDATED: All Time view includes system count + tracked plays
+                // Filter out songs with no plays at all
+                allSongs = allSongs.filter { song in
+                    song.totalPlayCount > 0
+                }
+                
+                // Sort by total play count (system + tracked)
                 allSongs.sort { $0.totalPlayCount > $1.totalPlayCount }
             }
             
+            // Update rankings based on current filter
             for (index, song) in allSongs.enumerated() {
                 song.updateRank(index + 1)
             }
@@ -126,24 +137,32 @@ struct ChartRow: View {
     let isCurrentlyPlaying: Bool
     let tracker: NowPlayingTracker
     
+    // UPDATED: Proper play count calculation based on filter
     private var playCount: Int {
         if let startDate = timeFilter.startDate {
-            return song.playsInPeriod(since: startDate).count
+            // Time-filtered views: only count actual PlayEvents in period
+            return song.playCountInPeriod(since: startDate)
         } else {
+            // All Time view: system count + tracked plays
             return song.totalPlayCount
         }
     }
     
-    private var playCountBreakdown: (realTime: Int, sync: Int, estimated: Int) {
-        let events = timeFilter.startDate != nil ?
-            song.playsInPeriod(since: timeFilter.startDate!) :
-            song.playEvents
-        
-        let realTime = events.filter { $0.source == .realTime }.count
-        let sync = events.filter { $0.source == .systemSync }.count
-        let estimated = events.filter { $0.source == .estimated }.count
-        
-        return (realTime, sync, estimated)
+    // UPDATED: Play count breakdown that shows accurate source information
+    private var playCountBreakdown: (realTime: Int, sync: Int, system: Int) {
+        if let startDate = timeFilter.startDate {
+            // Time-filtered views: only actual events in period
+            let events = song.playsInPeriod(since: startDate)
+            let realTime = events.filter { $0.source == .realTime }.count
+            let sync = events.filter { $0.source == .systemSync }.count
+            return (realTime, sync, 0) // No system count for time-filtered views
+        } else {
+            // All Time view: show breakdown including system baseline
+            let realTime = song.realTimePlayCount
+            let sync = song.systemSyncPlayCount
+            let system = song.lastSystemPlayCount
+            return (realTime, sync, system)
+        }
     }
     
     var body: some View {
@@ -187,27 +206,26 @@ struct ChartRow: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                         
+                        // UPDATED: Show accurate source breakdown
                         let breakdown = playCountBreakdown
-                        if breakdown.realTime > 0 || breakdown.sync > 0 {
-                            HStack(spacing: 4) {
-                                if breakdown.realTime > 0 {
-                                    Label("\(breakdown.realTime)", systemImage: "circle.fill")
-                                        .font(.caption2)
-                                        .foregroundColor(.green)
-                                        .labelStyle(.titleAndIcon)
-                                }
-                                if breakdown.sync > 0 {
-                                    Label("\(breakdown.sync)", systemImage: "arrow.clockwise")
-                                        .font(.caption2)
-                                        .foregroundColor(.blue)
-                                        .labelStyle(.titleAndIcon)
-                                }
-                                if breakdown.estimated > 0 {
-                                    Label("\(breakdown.estimated)", systemImage: "questionmark")
-                                        .font(.caption2)
-                                        .foregroundColor(.gray)
-                                        .labelStyle(.titleAndIcon)
-                                }
+                        HStack(spacing: 4) {
+                            if breakdown.system > 0 {
+                                Label("\(breakdown.system)", systemImage: "music.note")
+                                    .font(.caption2)
+                                    .foregroundColor(.purple)
+                                    .labelStyle(.titleAndIcon)
+                            }
+                            if breakdown.realTime > 0 {
+                                Label("\(breakdown.realTime)", systemImage: "circle.fill")
+                                    .font(.caption2)
+                                    .foregroundColor(.green)
+                                    .labelStyle(.titleAndIcon)
+                            }
+                            if breakdown.sync > 0 {
+                                Label("\(breakdown.sync)", systemImage: "arrow.clockwise")
+                                    .font(.caption2)
+                                    .foregroundColor(.blue)
+                                    .labelStyle(.titleAndIcon)
                             }
                         }
                     }

@@ -30,7 +30,6 @@ struct SetupView: View {
                 
                 // Icon
                 iconView
-                    .symbolEffect(.pulse, isActive: currentState == .seeding)
                 
                 // Content based on state
                 switch currentState {
@@ -67,7 +66,7 @@ struct SetupView: View {
             Image(systemName: "music.note.house")
                 .font(.system(size: 80))
                 .foregroundColor(.accentColor)
-                .symbolEffect(.pulse)
+                // FIXED: Removed .symbolEffect(.pulse) to stop fading animation
                 
         case .permissionDenied:
             Image(systemName: "exclamationmark.triangle")
@@ -75,9 +74,11 @@ struct SetupView: View {
                 .foregroundColor(.orange)
                 
         case .seeding:
+            // FIXED: Remove the fading animation during seeding
             Image(systemName: "music.note.house")
                 .font(.system(size: 60))
                 .foregroundColor(.accentColor)
+                // No symbolEffect during seeding to prevent flickering
         }
     }
     
@@ -200,29 +201,6 @@ struct SetupView: View {
                         .foregroundColor(.white.opacity(0.6))
                 }
                 
-                // Current song being processed
-                if !tracker.currentProcessingSong.isEmpty {
-                    VStack(spacing: 4) {
-                        Text("Processing")
-                            .font(.caption)
-                            .foregroundColor(.white.opacity(0.6))
-                        
-                        Text(tracker.currentProcessingSong)
-                            .font(.caption.bold())
-                            .foregroundColor(.white)
-                            .lineLimit(1)
-                            .frame(maxWidth: 250)
-                    }
-                    .transition(.opacity)
-                }
-            }
-            
-            // Estimated time remaining
-            if tracker.estimatedTimeRemaining > 0 {
-                Text("About \(tracker.estimatedTimeRemaining) seconds remaining")
-                    .font(.caption)
-                    .foregroundColor(.white.opacity(0.6))
-                    .transition(.opacity)
             }
         }
         .onAppear {

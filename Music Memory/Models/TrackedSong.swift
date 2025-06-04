@@ -18,9 +18,15 @@ final class TrackedSong {
     @Relationship(deleteRule: .cascade, inverse: \PlayEvent.song)
     var playEvents: [PlayEvent] = []
     
-    // Computed properties
+    // UPDATED: Computed properties that properly separate system count from tracked events
     var totalPlayCount: Int {
-        playEvents.count
+        // All Time = system count from setup + actual tracked plays
+        return lastSystemPlayCount + trackedPlayCount
+    }
+    
+    var trackedPlayCount: Int {
+        // Count all actual PlayEvents (since we no longer create estimated events)
+        return playEvents.count
     }
     
     var realTimePlayCount: Int {
@@ -31,9 +37,7 @@ final class TrackedSong {
         playEvents.filter { $0.source == .systemSync }.count
     }
     
-    var estimatedPlayCount: Int {
-        playEvents.filter { $0.source == .estimated }.count
-    }
+    // REMOVED: estimatedPlayCount since we no longer create historical PlayEvents
     
     init(persistentID: UInt64,
          title: String,
@@ -77,9 +81,14 @@ final class TrackedSong {
         }
     }
     
-    // Get recent plays within timeframe
+    // UPDATED: Get plays within timeframe (only actual tracked events)
     func playsInPeriod(since startDate: Date) -> [PlayEvent] {
         return playEvents.filter { $0.timestamp >= startDate }
+    }
+    
+    // UPDATED: Get play count for specific time period
+    func playCountInPeriod(since startDate: Date) -> Int {
+        return playsInPeriod(since: startDate).count
     }
     
     // Get artwork from file system
